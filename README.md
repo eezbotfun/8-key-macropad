@@ -34,7 +34,7 @@ I bought a 12 key macro pad to simplify my daily work on PC. It works great, but
  
  Intuitive Configuration Software
 
- <img width="250" alt="feature-3" src="https://github.com/user-attachments/assets/e19cfe34-af14-4cea-8821-d78aa3cceb5a" />
+ <img width="500" alt="feature-3" src="https://github.com/user-attachments/assets/e19cfe34-af14-4cea-8821-d78aa3cceb5a" />
  
  Stream Deck Functionality ( Launching APP / Openning folder / Accessing Website / PC status Displaying / ... )
 
