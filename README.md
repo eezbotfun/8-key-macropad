@@ -13,8 +13,8 @@ I bought a 12 key macro pad to simplify my daily work on PC. It works great, but
  3.5 inch LCD ( 480 x 320 pixels resolution) 
 
  PC Monitoring Full Screen Mode
- 
- ![feature-5](https://github.com/user-attachments/assets/49c71ace-e53f-45e2-ab4d-a74f2be62fca)
+
+ <img width="250" alt="feature-1" src="https://github.com/user-attachments/assets/49c71ace-e53f-45e2-ab4d-a74f2be62fca" />
  
  5 Profiles With Dedicated Navigation Switch
  
