@@ -7,39 +7,47 @@ I bought a 12 key macro pad to simplify my daily work on PC. It works great, but
 
 # Features
  8 Fully Programmable Keys
+ <img width="395" alt="feature-1" src="https://github.com/user-attachments/assets/1d492629-8614-465a-a38a-4c4e614f78e9" />
+ 
  3.5 inch LCD ( 480 x 320 pixels resolution) 
+
+ PC Monitoring Full Screen Mode
+ ![feature-5](https://github.com/user-attachments/assets/49c71ace-e53f-45e2-ab4d-a74f2be62fca)
+ 
  5 Profiles With Dedicated Navigation Switch
+ <img width="395" alt="feature-2" src="https://github.com/user-attachments/assets/12ab0083-8de2-46f9-ac92-6e3217ad8cda" />
+ 
  RGB Backlit Configurable 
+ <img width="250" alt="feature-3" src="https://github.com/user-attachments/assets/7a1a9f31-30db-4609-bf47-a7083e441133" />
+ 
  Hot-swappable for easy customization
+ ![feature-4](https://github.com/user-attachments/assets/255cece8-c22b-4d80-ba0c-8a926c2562f4)
+ 
  Key Icon Customizable
+ 
  Script Supported
+ 
  Intuitive Configuration Software
+ ![config-app-ui](https://github.com/user-attachments/assets/e19cfe34-af14-4cea-8821-d78aa3cceb5a)
+ 
  Stream Deck Functionality ( Launching APP / Openning folder / Accessing Website / PC status Displaying / ... )
-
-<img width="395" alt="feature-1" src="https://github.com/user-attachments/assets/1d492629-8614-465a-a38a-4c4e614f78e9" />
-
-<img width="395" alt="feature-2" src="https://github.com/user-attachments/assets/12ab0083-8de2-46f9-ac92-6e3217ad8cda" />
-
-<img width="250" alt="feature-3" src="https://github.com/user-attachments/assets/7a1a9f31-30db-4609-bf47-a7083e441133" />
-
-![feature-4](https://github.com/user-attachments/assets/255cece8-c22b-4d80-ba0c-8a926c2562f4)
-
-![feature-5](https://github.com/user-attachments/assets/49c71ace-e53f-45e2-ab4d-a74f2be62fca)
-![config-app-ui](https://github.com/user-attachments/assets/e19cfe34-af14-4cea-8821-d78aa3cceb5a)
 
 # How to use
 The eezBotFun macro pad is actually a standard HID device, so it works out of the
 box with most of the Windows, MacOS and Linux computers when you use it as a simple
 shortcut macro pad (HID Mode).
-You can use it as a control panel (Non-HID Mode) as well. But similar to stream deck,
-you need to keep the configure app running in background to make some advanced features
-work.
+Additionally you can use it as a control panel (Non-HID Mode) as well. But similar to stream deck,
+you need to keep the configure app running in background to make some advanced features work.
 The table below illustrates which features support HID Mode.
+
 <img width="446" alt="hid-mode-illustration" src="https://github.com/user-attachments/assets/a4cc1104-24d1-4030-9acf-44516ee86ee6" />
 
 
-HID Mode means it works without configure app running.
+Please keep in mind you need run configure app running in the background when using (Non-HID Mode) features.
+
+# Configure APP
 The configure app is available at https://www.itsmartreach.com/dl/EezBotFunApp-en.rar
+Currently only windows version is available.
 
 # User Manual
 [EezBotFun_Macropad_User_Manual.pdf](https://github.com/user-attachments/files/20768355/EezBotFun_Macropad_User_Manual.pdf)
