@@ -25,16 +25,16 @@ I bought a 12 key macro pad to simplify my daily work on PC. It works great, but
  <img width="250" alt="feature-3" src="https://github.com/user-attachments/assets/7a1a9f31-30db-4609-bf47-a7083e441133" />
  
  Hot-swappable for easy customization
- 
- ![feature-4](https://github.com/user-attachments/assets/255cece8-c22b-4d80-ba0c-8a926c2562f4)
+
+ <img width="250" alt="feature-3" src="https://github.com/user-attachments/assets/255cece8-c22b-4d80-ba0c-8a926c2562f4" />
  
  Key Icon Customizable
  
  Script Supported
  
  Intuitive Configuration Software
- 
- ![config-app-ui](https://github.com/user-attachments/assets/e19cfe34-af14-4cea-8821-d78aa3cceb5a)
+
+ <img width="250" alt="feature-3" src="https://github.com/user-attachments/assets/e19cfe34-af14-4cea-8821-d78aa3cceb5a" />
  
  Stream Deck Functionality ( Launching APP / Openning folder / Accessing Website / PC status Displaying / ... )
 
