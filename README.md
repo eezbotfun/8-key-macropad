@@ -60,3 +60,6 @@ Currently only windows version is available.
 
 # 3D Printing Housing
 https://www.thingiverse.com/thing:7071758 
+
+# Discord
+https://discord.gg/s5KM92ZC
