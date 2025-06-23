@@ -52,10 +52,11 @@ The table below illustrates which features support HID Mode.
 Please keep in mind you need run configure app running in the background when using (Non-HID Mode) features.
 
 # Configure APP
-The configure app is available at https://www.itsmartreach.com/dl/EezBotFunApp-en.rar
+Please see config-app folder for detailed infomation.
 Currently only windows version is available.
 
 # User Manual
 [EezBotFun_Macropad_User_Manual.pdf](https://github.com/user-attachments/files/20768355/EezBotFun_Macropad_User_Manual.pdf)
 
- 
+# 3D Printing Housing
+https://www.thingiverse.com/thing:7071758 
