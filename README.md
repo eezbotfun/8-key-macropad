@@ -1,6 +1,6 @@
 # What is it?
 This is not only a macro pad but also kind of a desktop control center (inspired by Stream Deck) with 3.5 inch LCD.
-You can view it as a DIY version of Stream Deck, Yet improved by using Hot-Swappable Key Caps and Support HID mode which Stream Deck can not. 
+You can view it as a DIY version of Stream Deck, Yet improved by using Hot-Swappable switches and support HID mode which Stream Deck can not. 
 
 # Why make it?
 I bought a 12 key macro pad to simplify my daily work on PC. It works great, but I always forget the key function especially when that key is not used for a while. So the idea of making a macro pad with a LCD to dynamically show the functionality comes to my mind.
