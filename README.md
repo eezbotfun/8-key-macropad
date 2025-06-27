@@ -63,3 +63,6 @@ https://www.thingiverse.com/thing:7071758
 
 # Discord
 https://discord.gg/s5KM92ZC
+
+# Tindie
+<a href="https://www.tindie.com/stores/yangshu/?ref=offsite_badges&utm_source=sellers_AlanYang&utm_medium=badges&utm_campaign=badge_large"><img src="https://d2ss6ovg47m0r5.cloudfront.net/badges/tindie-larges.png" alt="I sell on Tindie" width="200" height="104"></a>
