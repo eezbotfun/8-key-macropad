@@ -10,25 +10,15 @@ I bought a 12 key macro pad to simplify my daily work on PC. It works great, but
 # Features
  8 Fully Programmable Keys 
  
- <img width="250" alt="feature-1" src="https://github.com/user-attachments/assets/1d492629-8614-465a-a38a-4c4e614f78e9" />
- 
  3.5 inch LCD ( 480 x 320 pixels resolution) 
 
  PC Monitoring Full Screen Mode
-
- <img width="250" alt="feature-1" src="https://github.com/user-attachments/assets/49c71ace-e53f-45e2-ab4d-a74f2be62fca" />
  
  5 Profiles With Dedicated Navigation Switch
  
- <img width="250" alt="feature-2" src="https://github.com/user-attachments/assets/12ab0083-8de2-46f9-ac92-6e3217ad8cda" />
- 
- RGB Backlit Configurable 
- 
- <img width="250" alt="feature-3" src="https://github.com/user-attachments/assets/7a1a9f31-30db-4609-bf47-a7083e441133" />
+ RGB Backlit Configurable (wired version only)
  
  Hot-swappable for easy customization
-
- <img width="250" alt="feature-3" src="https://github.com/user-attachments/assets/255cece8-c22b-4d80-ba0c-8a926c2562f4" />
  
  Key Icon Customizable
  
