@@ -1,4 +1,5 @@
 ![3D打印外壳白色](https://github.com/user-attachments/assets/2e3bb6ed-3def-4f0d-b35a-d27045e3f3d3)
+![黑色3D打印版](https://github.com/user-attachments/assets/3f4c9618-0dde-4293-afd4-1a01e6abe315)
 # What is it?
 This is not only a macro pad but also kind of a desktop control center (inspired by Stream Deck) with 3.5 inch LCD.
 You can view it as a DIY version of Stream Deck, Yet improved by using Hot-Swappable switches and support HID mode which Stream Deck can not. 
