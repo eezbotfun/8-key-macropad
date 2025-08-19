@@ -28,7 +28,7 @@ I bought a 12 key macro pad to simplify my daily work on PC. It works great, but
  
  Intuitive Configuration Software
 
- <img width="500" alt="feature-3" src="https://github.com/user-attachments/assets/e19cfe34-af14-4cea-8821-d78aa3cceb5a" />
+ <img alt="feature-3" src="https://github.com/user-attachments/assets/e19cfe34-af14-4cea-8821-d78aa3cceb5a" />
  
  Stream Deck Functionality ( Launching APP / Openning folder / Accessing Website / PC status Displaying / ... )
 
@@ -40,7 +40,7 @@ Additionally you can use it as a control panel (Non-HID Mode) as well. But simil
 you need to keep the configure app running in background to make some advanced features work.
 The table below illustrates which features support HID Mode.
 
-<img width="446" alt="hid-mode-illustration" src="https://github.com/user-attachments/assets/a4cc1104-24d1-4030-9acf-44516ee86ee6" />
+<img width="500" alt="hid-mode-illustration" src="https://github.com/user-attachments/assets/a4cc1104-24d1-4030-9acf-44516ee86ee6" />
 
 
 Please keep in mind you need run configure app running in the background when using (Non-HID Mode) features.
