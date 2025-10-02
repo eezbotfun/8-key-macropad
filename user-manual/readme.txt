@@ -5,6 +5,7 @@ There are 3 ways to configure the macropad:
 
 2. Using online website
    Os indepentend, only requirement is that the web browser support USB-Serial. Such as chrome, safari and edge.
+   Offical online configuration websit: https://www.itsmartreach.com/eezbotfun/index.html
 
 3. Hacking
    Write the script then put it under device's scripts folder, that 's all. Refer to "Script Quick Start" .
