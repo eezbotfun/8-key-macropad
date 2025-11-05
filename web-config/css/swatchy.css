@@ -1,0 +1,72 @@
+.swatchy-element {
+    margin: 8px 0;
+    padding: 12px;
+    background: white;
+    border-radius: 8px;
+    max-width: 284px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+}
+
+.swatchy-swatches {
+    display: grid;
+    grid-template-columns: repeat(11, 24px);
+    justify-items: center;
+    grid-gap: 8px 2px;
+}
+
+.swatchy-color-button {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: none;
+}
+
+.swatchy-color-button {
+    cursor: pointer;
+}
+
+.swatchy-display {
+    margin: 4px;
+    height: 48px;
+    max-width: 48px;
+    border-radius: 8px;
+    border: none;
+}
+
+
+
+/* From uiverse.io by @Voxybuns */
+.swatchy-button {
+    /* Variables */
+    --button_radius: 0.75em;
+    --button_color: #e8e8e8;
+    --button_outline_color: #000000;
+    font-size: 17px;
+    font-weight: bold;
+    border: none;
+    border-radius: var(--button_radius);
+    background: var(--button_outline_color);
+    padding: 0;
+}
+
+.swatchy-button-top {
+    display: block;
+    box-sizing: border-box;
+    border: 2px solid var(--button_outline_color);
+    border-radius: var(--button_radius);
+    padding: 0.75em 1.5em;
+    background: var(--button_color);
+    color: var(--button_outline_color);
+    transform: translateY(-0.2em);
+    transition: transform 0.1s ease;
+}
+
+.swatchy-button:hover .swatchy-button-top {
+    /* Pull the button upwards when hovered */
+    transform: translateY(-0.33em);
+}
+
+.swatchy-button:active .swatchy-button-top {
+    /* Push the button downwards when pressed */
+    transform: translateY(0);
+}
