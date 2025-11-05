@@ -1,0 +1,199 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>EezBotFun Micropad Config</title>
+  
+  <link type="text/css" rel="stylesheet" href="css/style.css" />
+  <link type="text/css" rel="stylesheet" href="css/decor.css" />
+  <link type="text/css" rel="stylesheet" href="css/swatchy.css">
+
+</head>
+
+<body>
+  <div class="container">
+
+  <div class="action">
+      <button id="connectButton">Connect</button> <button id="disconnectButton" hidden="true">Disconnect</button>
+  </div>
+
+  <!-- Tab links -->
+  <div class="tab">
+    <button class="tablinks" onclick="setProfile(event, '1')">1</button>
+    <button class="tablinks" onclick="setProfile(event, '2')">2</button>
+    <button class="tablinks" onclick="setProfile(event, '3')">3</button>
+    <button class="tablinks" onclick="setProfile(event, '4')">4</button>
+    <button class="tablinks" onclick="setProfile(event, '5')">5</button>
+
+  </div>
+
+  <!-- Tab content -->
+  <div id="1" class="tabcontent">
+    <h3>You are configuring Profile 1</h3>
+  </div>
+
+  <div id="2" class="tabcontent">
+    <h3>You are configuring Profile 2</h3>
+  </div>
+
+  <div id="3" class="tabcontent">
+    <h3>You are configuring Profile 3</h3>
+  </div>
+
+  <div id="4" class="tabcontent">
+    <h3>You are configuring Profile 4</h3>
+  </div>
+
+  <div id="5" class="tabcontent">
+    <h3>You are configuring Profile 5</h3>
+  </div>
+
+  <div class="keyboard1" id="kb1"></div>
+<!--
+  <div class="keyboard2" id="kb2"></div>
+-->
+
+
+  <div class="keyboardContainer">
+		<div class="simple-keyboard-main"></div>
+
+		<div class="controlArrows">
+			<div class="simple-keyboard-control"></div>
+			<div class="simple-keyboard-arrows"></div>
+		</div>
+
+		<div class="numPad">
+			<div class="simple-keyboard-numpad"></div>
+			<div class="simple-keyboard-numpadEnd"></div>
+		</div>
+		
+	</div>
+
+<!--
+  按键定义配置
+-->
+  
+  <div class="cfg">
+      <input class="input" /><button id="deleteButton">Delete</button>
+  </div>
+  
+<!--
+  按键别名配置
+-->
+<label id="customize_alias">
+  <input type="checkbox" id="checkbox_alias" name="customize" onchange="checkbox_alias_onChange(this)" />Customize Display
+</label>
+<br>
+<div id="aliasconainer" hidden="true">
+    <input class="alias_input" type="text" >
+</div>
+
+<!--
+  脚本配置
+-->
+<label id="customize_script">
+  <input type="checkbox" id="checkbox_script" name="script" onchange="checkbox_script_onChange(this)" />Script
+</label>
+<br>
+<div id="scriptconainer" hidden="true">
+    <textarea class="script_input" name="Text1" cols="40" rows="5"></textarea>
+</div>
+
+<!--
+  向设备发送配置
+-->
+  <div class="action">
+      <button id="saveConfigButton" hidden = "true">Save</button>
+  </div>
+ </div>
+
+
+
+<!--
+  RGB灯配置
+-->
+<label id="customize_led">
+  <input type="checkbox" id="checkbox_customize" name="customize" onchange="checkbox_customize_onChange(this)" />Customize Background Color
+</label>
+<br>
+<div id="ledconainer" hidden="true">
+    <button class="swatchy-button swatchy-trigger"><span class="swatchy-button-top">Select a Color</span></button>
+    <input id="ledcolor" type="text" class="swatchy-output swatchy-display" disabled>
+    <div class="slidecontainer">
+      <span>Brightness</span><input type="range" min="1" max="100" value="50" class="slider" id="ledbrightness">
+    </div>
+    <div class="action">
+      <button id="saveLedConfigButton">Customize</button>
+    </div>
+</div>
+
+<!--
+  升级firmware配置
+-->
+<label id="update_firmware">
+  <input type="checkbox" name="customize" onchange="checkbox_firmware_onChange(this)" />Update Firmware
+</label>
+<br>
+<div id="firmwarecontainer" hidden="true">
+  <span>The device need to download the latest firmware from the server, so wifi settings should be filled below</span><br>
+  <span>SSID</span><input class="ssid_input"  type="text" >
+  <span>Password</span><input class="password_input" type="text" >
+  <div class="action">
+    <button id="updateFirmwareButton">Update Firmware</button>
+  </div>
+</div>
+  
+<!--
+  设备回应显示
+-->
+<div id="device_rsp"></div>
+
+  
+
+  <script src="index.js"></script>
+  <script src="kb.js" ></script>
+  <script src="webserial.js"></script>
+  <script src="swatchy.js"></script>
+  <script>
+    Swatchy()
+    function checkbox_customize_onChange(element) {
+    	console.log('changed to ' + element.checked);
+      if ( element.checked ){
+        document.getElementById('ledconainer').hidden = false;
+      }
+      else{
+        document.getElementById('ledconainer').hidden = true;
+      }
+    }
+    function checkbox_alias_onChange(element) {
+    	console.log('changed to ' + element.checked);
+      if ( element.checked ){
+        document.getElementById('aliasconainer').hidden = false;
+      }
+      else{
+        document.getElementById('aliasconainer').hidden = true;
+      }
+    }
+    function checkbox_script_onChange(element) {
+    	console.log('changed to ' + element.checked);
+      if ( element.checked ){
+        document.getElementById('scriptconainer').hidden = false;
+      }
+      else{
+        document.getElementById('scriptconainer').hidden = true;
+      }
+    }
+    function checkbox_firmware_onChange(element) {
+    	console.log('changed to ' + element.checked);
+      if ( element.checked ){
+        document.getElementById('firmwarecontainer').hidden = false;
+      }
+      else{
+        document.getElementById('firmwarecontainer').hidden = true;
+      }
+    }
+  </script>
+ 
+</body>
+</html>
