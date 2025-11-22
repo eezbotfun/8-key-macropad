@@ -3,11 +3,40 @@
 ![黑色3D打印版](https://github.com/user-attachments/assets/3f4c9618-0dde-4293-afd4-1a01e6abe315)
 
 # What is it?
-This is not only a macro pad but also kind of a desktop control center (inspired by Stream Deck) with 3.5 inch LCD.
-You can view it as a DIY version of Stream Deck, Yet improved by using Hot-Swappable switches and support HID mode which Stream Deck can not. 
+All the power of a Stream Deck, now with tactile mechanical keys, wireless freedom, and full DIY customization.
 
 # Why make it?
-I bought a 12 key macro pad to simplify my daily work on PC. It works great, but I always forget the key function especially when that key is not used for a while. So the idea of making a macro pad with a LCD to dynamically show the functionality comes to my mind.
+The Stream Deck is cool and feature-rich, but its soft buttons lack the satisfying feedback of mechanical keys — and it can't go wireless. That's why we created a DIY alternative: a powerful macropad with tactile mechanical keys, wireless connectivity, and full customization.
+
+# Pros Compared to Stream Deck
+
+## Wireless & Plug-and-Play
+No software or drivers needed; works instantly.
+
+## HID Mode Support
+Functions as a standard HID device, allowing use even at computer startup — perfect for logging in without any background programs.
+
+## Ultra-Fast Communication
+Uses ESP-NOW for low-latency, reliable performance.
+
+## 3.5-inch Full Display
+Provides a larger, more visually appealing screen for key functions and animations.
+
+## Mechanical Keys
+High-quality mechanical switches offer a much better typing and tactile experience than Stream Deck, improving overall user interaction.
+
+## Open Script Support
+Users can write scripts to achieve virtually any function, making it highly customizable and fun to play with.
+
+## 3D Printable Cases
+3D files provided, allowing users to print their own cases in different colors and styles.
+
+## User Presets Community
+Share and download key presets with other users, making it easy to set up your keyboard your way.
+
+## Affordable
+High functionality without the premium price of commercial alternatives.
+
 
 # Features
  8 Fully Programmable Keys 
