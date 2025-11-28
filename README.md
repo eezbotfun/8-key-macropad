@@ -1,6 +1,6 @@
 ![01 - Copy](https://github.com/user-attachments/assets/57224ac3-f8c2-4f07-bfcd-82082c500e8c)
 ![3D打印外壳白色](https://github.com/user-attachments/assets/2e3bb6ed-3def-4f0d-b35a-d27045e3f3d3)
-![黑色3D打印版](https://github.com/user-attachments/assets/3f4c9618-0dde-4293-afd4-1a01e6abe315)
+![1](https://github.com/user-attachments/assets/4e0590f7-eb50-4161-b4b7-73ca4f864599)
 
 # What is it?
 All the power of a Stream Deck, now with tactile mechanical keys, wireless freedom, and full DIY customization.
@@ -56,8 +56,9 @@ High functionality without the premium price of commercial alternatives.
  Script Supported
  
  Intuitive Configuration Software
+![APP UI](https://github.com/eezbotfun/8-key-macropad/blob/main/config-app/UI-Overview-illustrated.PNG)
 
- <img alt="feature-3" src="https://github.com/user-attachments/assets/e19cfe34-af14-4cea-8821-d78aa3cceb5a" />
+
  
  Stream Deck Functionality ( Launching APP / Openning folder / Accessing Website / PC status Displaying / ... )
 
