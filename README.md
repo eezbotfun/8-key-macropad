@@ -6,35 +6,35 @@
 All the power of a Stream Deck, now with tactile mechanical keys, wireless freedom, and full DIY customization.
 
 # Why make it?
-The Stream Deck is cool and feature-rich, but its soft buttons lack the satisfying feedback of mechanical keys — and it can't go wireless. That's why we created a DIY alternative: a powerful macropad with tactile mechanical keys, wireless connectivity, and full customization.
+The Stream Deck is cool and feature-rich, but its soft buttons lack the satisfying feedback of mechanical keys — and it can't go wireless. That's why we created a DIY alternative: a powerful macropad with tactile ***mechanical keys***, ***wireless connectivity***, and ***apperance customization***.
 
 # Pros Compared to Stream Deck
 
-## Wireless & Plug-and-Play
+***Wireless & Plug-and-Play*** : 
 No software or drivers needed; works instantly.
 
-## HID Mode Support
+***HID Mode Support*** : 
 Functions as a standard HID device, allowing use even at computer startup — perfect for logging in without any background programs.
 
-## Ultra-Fast Communication
+***Ultra-Fast Communication*** : 
 Uses ESP-NOW for low-latency, reliable performance.
 
-## 3.5-inch Full Display
+***3.5-inch Full Display*** : 
 Provides a larger, more visually appealing screen for key functions and animations.
 
-## Mechanical Keys
+***Mechanical Keys*** : 
 High-quality mechanical switches offer a much better typing and tactile experience than Stream Deck, improving overall user interaction.
 
-## Open Script Support
+***Open Script Support*** : 
 Users can write scripts to achieve virtually any function, making it highly customizable and fun to play with.
 
-## 3D Printable Cases
+***3D Printable Cases*** : 
 3D files provided, allowing users to print their own cases in different colors and styles.
 
-## User Presets Community
+***User Presets Community*** : 
 Share and download key presets with other users, making it easy to set up your keyboard your way.
 
-## Affordable
+***Affordable*** : 
 High functionality without the premium price of commercial alternatives.
 
 
