@@ -1,0 +1,264 @@
+EZBF IPC PROTOCOL SPECIFICATION
+Version: 1.0
+Transport: Windows Named Pipe
+Encoding: Binary header + UTF-8 JSON payload
+
+==================================================
+1. OVERVIEW
+==================================================
+
+This document defines the inter-process communication (IPC) protocol
+used between an IPC server and IPC client over Windows Named Pipes.
+
+The protocol is designed to support:
+- Version negotiation
+- Message validation
+- Request/response communication
+- Asynchronous events
+- Forward and backward compatibility
+
+==================================================
+2. TRANSPORT
+==================================================
+
+Transport: Windows Named Pipe
+Pipe Mode: Byte mode
+Direction: Duplex
+Security: Default (same-user access)
+
+The protocol is message-framed and MUST NOT rely on pipe message mode.
+
+==================================================
+3. MESSAGE FRAME
+==================================================
+
+Each message consists of:
+1) A fixed-size binary header
+2) A variable-length JSON payload
+
+--------------------------------------------------
+3.1 Binary Header Layout (12 bytes total)
+--------------------------------------------------
+
+Offset | Size | Name
+-------|------|----------------
+0      | 4    | Magic
+4      | 1    | ProtocolVersion
+5      | 1    | MessageType
+6      | 1    | Flags
+7      | 1    | Reserved
+8      | 4    | PayloadLength
+
+--------------------------------------------------
+3.2 Header Field Definitions
+--------------------------------------------------
+
+Magic:
+- 4 bytes (uint32, little-endian)
+- ASCII value: "EZBF"
+- Used to validate protocol framing
+
+ProtocolVersion:
+- 1 byte
+- Current version: 1
+
+MessageType:
+- 1 byte
+- Defines semantic meaning of the payload
+
+Flags:
+- 1 byte
+- Bitfield (currently unused, must be set to 0)
+
+Reserved:
+- 1 byte
+- Must be set to 0 (reserved for future use)
+
+PayloadLength:
+- 4 bytes (uint32, little-endian)
+- Length of JSON payload in bytes
+- May be zero
+
+==================================================
+4. MESSAGE TYPES
+==================================================
+
+Hex | Name
+----|----------------
+0x01 | HELLO
+0x02 | HELLO_ACK
+0x10 | REQUEST
+0x11 | RESPONSE
+0x20 | EVENT
+0x7F | ERROR
+
+Unknown MessageTypes MUST be ignored gracefully.
+
+==================================================
+5. PAYLOAD FORMAT
+==================================================
+
+Payload encoding:
+- UTF-8 JSON text
+- No BOM
+- Object at root level
+
+Rules:
+- Unknown JSON fields MUST be ignored
+- Missing optional fields MUST NOT cause errors
+- Field order is irrelevant
+
+==================================================
+6. HANDSHAKE SEQUENCE
+==================================================
+
+The handshake MUST be the first message exchange.
+
+--------------------------------------------------
+6.1 Client → Server (HELLO)
+--------------------------------------------------
+
+MessageType: HELLO
+
+Example payload:
+{
+  "app": "EEZBotFun",
+  "appVersion": "1.4.2",
+  "protocolMin": 1,
+  "protocolMax": 1,
+  "pid": 12345,
+  "capabilities": ["macros", "hid", "screen"]
+}
+
+--------------------------------------------------
+6.2 Server → Client (HELLO_ACK)
+--------------------------------------------------
+
+MessageType: HELLO_ACK
+
+Example payload:
+{
+  "status": "ok",
+  "acceptedProtocol": 1,
+  "server": "EEZBotFunService",
+  "serverVersion": "1.4.0",
+  "sessionId": "9d2c01e7",
+  "capabilities": ["macros", "hid"]
+}
+
+If incompatible:
+
+{
+  "status": "error",
+  "reason": "Protocol version mismatch",
+  "supported": [1]
+}
+
+If handshake fails, the pipe MUST be closed.
+
+==================================================
+7. REQUEST / RESPONSE
+==================================================
+
+--------------------------------------------------
+7.1 REQUEST
+--------------------------------------------------
+
+MessageType: REQUEST
+
+Fields:
+- id (number, required)
+- command (string, required)
+- parameters (object, optional)
+
+Example:
+{
+  "id": 42,
+  "command": "set_profile",
+  "parameters": {
+    "profile": "gaming"
+  }
+}
+
+--------------------------------------------------
+7.2 RESPONSE
+--------------------------------------------------
+
+MessageType: RESPONSE
+
+Fields:
+- id (number, required)
+- status (string, required: "ok" or "error")
+- result (object, optional)
+- error (string, optional)
+
+Example:
+{
+  "id": 42,
+  "status": "ok"
+}
+
+==================================================
+8. EVENT MESSAGES
+==================================================
+
+MessageType: EVENT
+
+Events are unsolicited messages sent by the server.
+
+Example:
+{
+  "event": "device_connected",
+  "device": "EEZBotFun"
+}
+
+EVENT messages MUST NOT include an "id" field.
+
+==================================================
+9. ERROR MESSAGES
+==================================================
+
+MessageType: ERROR
+
+Example:
+{
+  "code": "INVALID_COMMAND",
+  "message": "Command not recognized"
+}
+
+After sending an ERROR, the connection MAY be closed.
+
+==================================================
+10. VERSIONING RULES
+==================================================
+
+- ProtocolVersion applies to header format and MessageType meanings
+- JSON payloads are forward-compatible
+- New fields MAY be added
+- Existing fields MUST NOT be removed or redefined
+
+==================================================
+11. CONNECTION RULES
+==================================================
+
+- One logical session per pipe connection
+- Messages MUST be processed in order
+- Partial messages MUST be buffered until complete
+- Protocol violations SHOULD result in pipe closure
+
+==================================================
+12. FUTURE EXTENSIONS
+==================================================
+
+Reserved fields allow future support for:
+- Compression
+- Encryption
+- Message authentication
+- Heartbeats
+- Streaming messages
+
+These MUST be negotiated via ProtocolVersion.
+
+==================================================
+END OF SPECIFICATION
+==================================================
