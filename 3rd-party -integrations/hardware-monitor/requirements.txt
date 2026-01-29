@@ -1,0 +1,5 @@
+psutil>=5.9.0
+pynvml>=11.5.0
+pyserial>=3.5
+pywin32>=305; sys_platform == 'win32'
+WMI>=1.5.1; sys_platform == 'win32'
