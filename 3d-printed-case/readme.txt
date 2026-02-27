@@ -1,4 +1,4 @@
-![1](3d-printed-case/stand-v2-with-macropad-desktop.JPG)
+![1](https://github.com/eezbotfun/8-key-macropad/blob/main/3d-printed-case/stand-v2-with-macropad-desktop.JPG)
 
 This is 3D printing housing for eezbotfun  8 key macro pad with 3.5 inch LCD.
 For the top housing, I oriented top surface upside on the plate, which has a decent looking.
