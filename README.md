@@ -91,5 +91,8 @@ https://discord.gg/j7AJvjHQ7X
 # YouTube
 https://www.youtube.com/watch?v=CTTqsPymlk8
 
+# Hackaday
+https://hackaday.io/project/204257-8key-macro-pad-with-35-inch-lcd
+
 # Tindie
 <a href="https://www.tindie.com/stores/yangshu/?ref=offsite_badges&utm_source=sellers_AlanYang&utm_medium=badges&utm_campaign=badge_large"><img src="https://d2ss6ovg47m0r5.cloudfront.net/badges/tindie-larges.png" alt="I sell on Tindie" width="200" height="104"></a>
