@@ -17,31 +17,128 @@ document.getElementById('connectButton').addEventListener('click', () => {
   }
 });
 
-/* 断开设备 */
-document.getElementById('disconnectButton').addEventListener('click', () => {
+document.getElementById('disconnectButton').addEventListener('click', async () => {
+    
     portOpen = false;
-    //.releaseLock();
-    //reader.cancel();
+    reader.cancel();
     document.getElementById('connectButton').hidden = false;
     document.getElementById('disconnectButton').hidden = true;
   
 });
+function to_consumer_str(number){
+  let str = "{unknow}";
+  switch(number){
+    case 0x0030:
+        str = '{POWER}';
+        break;
+    case 0x0031:
+        str = '{RESET}';
+        break;
+    case 0x0032:
+        str = '{SLEEP}';
+        break;
 
+    case 0x00CD:
+        str = '{PLAY}';
+        break;
+    case 0x00B5:
+        str = '{NEXT}';
+        break;
+    case 0x00B6:
+        str = '{PREV}';
+        break;
+    case 0x00B7:
+        str = '{STOP}';
+        break;
+    
+    case 0x00E2:
+        str = '{MUTE}';
+        break;
+    case 0x00E9:
+        str = '{VOL_INC}';
+        break;
+    case 0x00EA:
+        str = '{VOL_DEC}';
+        break;
+
+    case 0x0183:
+        str = '{CONFIG}';
+        break;
+    case 0x018A:
+        str = '{EMAIL}';
+        break;
+    case 0x0192:
+        str = '{CALC}';
+        break;
+    case 0x0194:
+        str = '{BROWSER}';
+        break;
+
+    case 0x0221:
+        str = '{SEARCH}';
+        break;
+    case 0x0223:
+        str = '{HOME}';
+        break;
+    case 0x0224:
+        str = '{BACK}';
+        break;
+    case 0x0225:
+        str = '{FORWARD}';
+        break;
+    case 0x0227:
+        str = '{REFRESH}';
+        break;
+    case 0x022A:
+        str = '{BOOKMARKS}';
+        break;    
+
+    default:
+      break;
+
+  }
+  return str;
+}
+
+function handle_line(line){
+  //console.log('<<'+line+' ['+line.length+']');
+  let content = line.substring(2);
+  let cmd = line.charAt(0)
+  switch(cmd){
+      case 'v':
+        break;
+      case 'a':
+        document.getElementById("checkbox_alias").checked = true;
+        document.getElementById('aliasconainer').hidden = false;
+        document.querySelector(".alias_input").value = content;
+        break;
+      case 'b':
+        document.getElementById("checkbox_alias").checked = false;
+        document.getElementById('aliasconainer').hidden = true;
+        document.querySelector(".alias_input").value = '';
+        break;
+
+      case 'c':
+        document.querySelector(".input").value = content;
+        keyboard.setInput(content);
+        break;
+
+      default:
+        break;
+  }
+}
 async function connectSerial() {
   const log = document.getElementById('device_rsp');
-  log.textContent = "connecting ... " ;
+  log.textContent = "connecting" ;
   try {
     const filter = { usbVendorId : 0x303a ,usbProductId : 18 };
     port = await navigator.serial.requestPort({ filters: [filter] });
     
     await port.open({ baudRate: 115200 });
     
-    const decoder = new TextDecoderStream();
-    
-    port.readable.pipeTo(decoder.writable);
-
-    const inputStream = decoder.readable;
-    reader = inputStream.getReader();
+    const textDecoder = new TextDecoderStream();
+    const readableStreamClosed = port.readable.pipeTo(textDecoder.writable);
+     reader = textDecoder.readable.getReader();
 
     // conceal connect button, display disconnect button instead
     document.getElementById('connectButton').hidden = true;
@@ -57,13 +154,15 @@ async function connectSerial() {
       const { value, done } = await reader.read();
       if (value) {
         rsp += value;
-        console.log('rsp : ', rsp);
-        if ( rsp.length > 8 && rsp.includes("APP-VER=") ){
-           // get version of APP
-           let version = rsp.substring(8);
-           version_number = parseInt( version, 10 );
-           console.log('version is ', version_number);
-           rsp = "";
+        //console.log('rsp : ', rsp);
+        if ( rsp.includes("\r\n") ){
+           
+           let idx = rsp.indexOf("\r\n");
+           let line = rsp.substring(0,idx);
+           //console.log('line='+line+'len='+line.length);
+           handle_line(line);
+           rsp = rsp.substring(idx+2);
+           //console.log('rsp='+rsp);
         }
       }
       if (done) {
@@ -73,12 +172,22 @@ async function connectSerial() {
       }
     }
     
-    log.textContent = "disconnecting ... " ;
-    await port.close();
-    log.textContent = "disconnected" ;
+    console.log("disconnecting ... ");
+    //const textEncoder = new TextEncoderStream();
+    //const writableStreamClosed = textEncoder.readable.pipeTo(port.writable);
 
-  } catch (error) {
+    //reader.cancel();
+    await readableStreamClosed.catch(() => { /* Ignore the error */ });
+    
+    //writer = port.writable.getWriter();
+    //writer.close();
+    //await writableStreamClosed;
+
+    await port.close();
+    console.log("port closed");
+} catch (error) {
     log.innerHTML = error;
+    alert("Please make sure the configurator app is not running. Since the macro pad cannot simultaneously connect to both web configurator and app configurator.");
   }
 }
 
@@ -110,7 +219,7 @@ function toU8Array(input_str){
   
   // 填写协议里 负荷长度（不包含 magic_str 以及长度本身这个字节）
   u8Array[3] = len - 4; //
-  console.log("u8Array : ",u8Array);
+  //console.log("u8Array : ",u8Array);
   return u8Array;
 }
 /* 发送按键定义配置到设备端 */
@@ -122,10 +231,17 @@ async function sendConfig() {
   if (!is_valid(input)){
       return;
   }
+  if ( '0' == profile ){
+    alert("请先选择按键所在布局（第二步）");
+    return;
+  }
 
   //console.log("input : ",input);
   let encoded = encode(input);
-  console.log("sending encoded : ",encoded);
+  if (encoded==''){
+    return;
+  }
+  //console.log("sending encoded : ",encoded);
   // Get a text encoder, pipe it to the SerialPort object, and get a writer
   //const textEncoder = new TextEncoderStream();
   //const writableStreamClosed = textEncoder.readable.pipeTo(port.writable);
@@ -138,7 +254,7 @@ async function sendConfig() {
   let enable =  !document.getElementById('aliasconainer').hidden;
   let alias = document.querySelector(".alias_input").value;
   let encodedAliasConfig = encodeAliasConfig(enable, alias);
-  await writer.write(toU8Array(encodedAliasConfig));
+  await writer.write((encodedAliasConfig));
 
   enable =  !document.getElementById('scriptconainer').hidden;
   let script = document.querySelector(".script_input").value;
@@ -172,7 +288,7 @@ async function sendWifiConfig() {
   let password = document.querySelector(".password_input").value
   //console.log("wifi : ",ssid +" / " + password);
   let encoded = encodeWifiConfig( ssid,password);
-  console.log("encoded : ",encoded);
+  //console.log("encoded : ",encoded);
   let u8Array = toU8Array(encoded)
 
 
@@ -191,13 +307,42 @@ async function sendQuereVersion() {
   encoded += '0';//PAYLOAD_LEN
   encoded += '5';//type = 5 wifi配置
  
-  console.log("encoded : ",encoded);
+  //console.log("encoded : ",encoded);
   let u8Array = toU8Array(encoded)
 
 
   writer = port.writable.getWriter();
   await writer.write(u8Array);
   writer.releaseLock();
+}
+
+/* 发送获取配置 */
+async function sendQuereCfg() {
+  if ( !portOpen || '0' == profile ){
+    return;
+  }
+  
+  /* 首字节插入 "ebf"type , 共4个字节 */
+  /* 形如：[MAGIC_STR][TYPE][KEY_NUM]:CONFIG 
+  如：ebf01.1:复制 (MAGIC_STR=ebf, KEY_NUM=1)*/
+  let encoded = "ebf";  
+  encoded += '0';//PAYLOAD_LEN
+  encoded += '8';
+  encoded += profile;
+  encoded += ".";
+  encoded += top.keyNumber;
+
+  if (encoded.includes("undefined")){
+    console.log("has undefined");
+    return;
+  }
+  //console.log("sendQuereCfg : "+profile+'.'+top.keyNumber);
+  let u8Array = toU8Array(encoded)
+
+  writer = port.writable.getWriter();
+  await writer.write(u8Array);
+  writer.releaseLock();
+  //console.log("done");
 }
 
 /* 转换成设备可识别配置字符串 */
@@ -219,9 +364,9 @@ function encodeLedConfig(color,brightness){
 async function sendLedConfig(){
   let colorValue = document.getElementById('ledcolor').value;
   let brightnessValue = document.getElementById('ledbrightness').value;
-  console.log('color = '+colorValue);
+  //console.log('color = '+colorValue);
   let encoded = encodeLedConfig(colorValue, brightnessValue);
-  console.log("sendLedConfig : ",encoded);
+  //console.log("sendLedConfig : ",encoded);
 
   let u8Array = toU8Array(encoded)
 
@@ -347,12 +492,85 @@ function replaceModifier(input){
   //console.log("replaced=",ascii_to_hex(placed));
   return placed;
 }
+function replaceConsumerCtrl(input){
+  let placed = input.replace("{power}","\x00\x30");
+  placed = placed.replace("{reset}","\x00\x31");
+  placed = placed.replace("{sleep}","\x00\x32");
+
+  placed = placed.replace("{play_pause}","\x00\xcd");
+  placed = placed.replace("{next}","\x00\xb5");
+  placed = placed.replace("{prev}","\x00\xb6");
+  placed = placed.replace("{stop_play}","\x00\xb7");
+  placed = placed.replace("{volume}","\x00\xe0");
+  placed = placed.replace("{mute}","\x00\xe2");
+  placed = placed.replace("{vol_inc}","\x00\xe9");
+  placed = placed.replace("{vol_dec}","\x00\xea");
+
+  placed = placed.replace("{config}","\x01\x83");
+  placed = placed.replace("{email}","\x01\x8a");
+  placed = placed.replace("{calc}","\x01\x92");
+  placed = placed.replace("{browser}","\x01\x94");
+
+  placed = placed.replace("{web_search}","\x02\x21");
+  placed = placed.replace("{web_home}","\x02\x23");
+  placed = placed.replace("{web_back}","\x02\x24");
+  placed = placed.replace("{web_forward}","\x02\x25");
+  placed = placed.replace("{web_stop}","\x02\x26");
+  placed = placed.replace("{web_refresh}","\x02\x27");
+  placed = placed.replace("{web_bkmarks}","\x02\x2a");
+
+  //console.log("replaced=",ascii_to_hex(placed));
+  return placed;
+}
+function getConsumerCtrlNum(input){
+   let num = 0;
+   num += input.includes("{power}")?1:0;
+   num += input.includes("{reset}")?1:0;
+   num += input.includes("{sleep}")?1:0;
+
+   num += input.includes("{play_pause}")?1:0;
+   num += input.includes("{next}")?1:0;
+   num += input.includes("{prev}")?1:0;
+   num += input.includes("{stop_play}")?1:0;
+   num += input.includes("{volume}")?1:0;
+   num += input.includes("{mute}")?1:0;
+   num += input.includes("{vol_inc}")?1:0;
+   num += input.includes("{vol_dec}")?1:0;
+
+   num += input.includes("{config}")?1:0;
+   num += input.includes("{email}")?1:0;
+   num += input.includes("{calc}")?1:0;
+   num += input.includes("{browser}")?1:0;
+
+   num += input.includes("{web_search}")?1:0;
+   num += input.includes("{web_home}")?1:0;
+   num += input.includes("{web_back}")?1:0;
+   num += input.includes("{web_forward}")?1:0;
+   num += input.includes("{web_stop}")?1:0;
+   num += input.includes("{web_refresh}")?1:0;
+   num += input.includes("{web_bkmarks}")?1:0;
+   return num;
+}
 
 /* 转换成设备可识别配置字符串 */
 function encode(input){
+  let replaced;
   let modifierNum = getModifierNum(input);
-  console.log("encoding ... modifierNum = ",modifierNum);
-  let replaced = replaceModifier(input);
+  let consumerCtrlNum = getConsumerCtrlNum(input);
+
+  if ( consumerCtrlNum ){
+    if (consumerCtrlNum > 1){
+      alert("多媒体按键只能单独使用");
+      return "";
+    }
+    replaced = replaceConsumerCtrl(input);
+  }
+  else{
+     
+    //console.log("encoding ... modifierNum = ",modifierNum);
+    replaced = replaceModifier(input);
+  }
+  
 
   /* 首字节插入 "ebf"type , 共4个字节 */
   /* 形如：[MAGIC_STR][PAYLOAD_LEN][TYPE][PROFILE].[KEY_NUM]:CONFIG 
@@ -364,24 +582,31 @@ function encode(input){
   encoded += ".";
   encoded += top.keyNumber;
   encoded += ":";
-  encoded += (modifierNum>0?'1':'0');
+  encoded += consumerCtrlNum==1?'2':(modifierNum>0?'1':'0');
   encoded += replaced; 
 
-  console.log("encoded = ",encoded);
-
-  let len = encoded.length - 4;
-
-  console.log(" len = ",len);
-  let len_in_hex = len.toString(16);
-  console.log(" len_in_hex = ",len_in_hex);
- 
+  //console.log("encoded = ",encoded);
+  //let len = encoded.length - 4;
+  //console.log(" len = ",len);
+  //let len_in_hex = len.toString(16);
+  //console.log(" len_in_hex = ",len_in_hex);
   return encoded;
 }
 /* 转换成设备可识别配置字符串 */
 function encodeAliasConfig(enable,input){
 
-  console.log("encodeAliasConfig : input = "+ input + " len = " + input.length);
+  //console.log("encodeAliasConfig : input = "+ input + " len = " + input.length);
 
+  var alias = new TextEncoder("utf-8").encode(input);
+  //console.log(alias ); 
+  
+  let alias_len = alias.length;
+  let alias_array = new Uint8Array(alias_len);
+  for (let i = 0; i < alias_len; i++) {
+    alias_array[i] = alias[i];
+  }
+  //console.log("alias_array="+alias_array ); 
+  
   /* 首字节插入 "ebf"type , 共4个字节 */
   /* 形如：[MAGIC_STR][TYPE][KEY_NUM]:CONFIG 
   如：ebf01.1:复制 (MAGIC_STR=ebf, KEY_NUM=1)*/
@@ -394,7 +619,6 @@ function encodeAliasConfig(enable,input){
     encoded += ".";
     encoded += top.keyNumber;
     encoded += ":";
-    encoded += input;
   }
   else{
     encoded += '0';//PAYLOAD_LEN
@@ -404,14 +628,36 @@ function encodeAliasConfig(enable,input){
     encoded += top.keyNumber;
     encoded += ":";
   }
+
+  let len = encoded.length;
+  let u8Array = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    u8Array[i] = encoded.charCodeAt(i);
+  }
+  //console.log("u8Array = ",u8Array);
+  
+  if ( enable ){
+    u8Array[3] = len - 4 + alias_array.length; //
+    let concatArray = new Uint8Array( u8Array.length + alias_array.length );
+    concatArray.set(u8Array);
+    concatArray.set(alias_array,u8Array.length);
+    //console.log("concat = ",concatArray);
+    return concatArray;
+  }
+  else{
+    u8Array[3] = len - 4; 
+    return u8Array;     
+  }
+  
+  
   
 
-  return encoded;
+  return u8Array;
 }
 
 function encodeScriptConfig(enable,input){
 
-  console.log("encodeScriptConfig : input = "+ input + " len = " + input.length);
+  //console.log("encodeScriptConfig : input = "+ input + " len = " + input.length);
 
   /* 首字节插入 "ebf"type , 共4个字节 */
   /* 形如：[MAGIC_STR][TYPE][KEY_NUM]:CONFIG 
@@ -471,6 +717,10 @@ function ascii_to_hex(str)
 function setProfile(evt, profileNum) {
   // Declare all variables
   var i, tabcontent, tablinks;
+  if (!portOpen){
+    alert('请先连接键盘');
+    return;
+  }
 
   // Get all elements with class="tabcontent" and hide them
   tabcontent = document.getElementsByClassName("tabcontent");
@@ -489,6 +739,8 @@ function setProfile(evt, profileNum) {
   evt.currentTarget.className += " active";
 
   profile = profileNum;
-  console.log("current profile = "+profile);
+  //console.log("current profile = "+profile);
+  
+  sendQuereCfg();
   
 }

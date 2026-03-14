@@ -14,9 +14,20 @@
 <body>
   <div class="container">
 
+  <div class="wizard">
+      <a href="https://www.eezbotfun.com/en/wiki/8-key-macro-pad-user-manual" target="_blank" rel="noopener">User Manual</a>
+  </div>
+  <div class="wizard">
+      <label>Step 1: Connect Macro Pad</label> 
+  </div>
+
   <div class="action">
       <button id="connectButton">Connect</button> <button id="disconnectButton" hidden="true">Disconnect</button>
   </div>
+
+  <div class="wizard">
+    <label>Step 2: Select the profile(aka. layout) and key of the macro pad to be configured</label> 
+  </div> 
 
   <!-- Tab links -->
   <div class="tab">
@@ -53,7 +64,10 @@
 <!--
   <div class="keyboard2" id="kb2"></div>
 -->
-
+<div class="wizard">
+  <label>Step 3: Click the keys below to configure (e.g. to configure Ctrl+C, click Ctrl then click c)
+  </label> 
+</div>
 
   <div class="keyboardContainer">
 		<div class="simple-keyboard-main"></div>
@@ -71,7 +85,7 @@
 	</div>
 
 <!--
-  按键定义配置
+  Key definition config
 -->
   
   <div class="cfg">
@@ -79,42 +93,57 @@
   </div>
   
 <!--
-  按键别名配置
+  Key alias config
 -->
 <label id="customize_alias">
-  <input type="checkbox" id="checkbox_alias" name="customize" onchange="checkbox_alias_onChange(this)" />Customize Display
+  <input type="checkbox" id="checkbox_alias" name="customize" onchange="checkbox_alias_onChange(this)" />Configure display name
+  <a href="javascript:void(0)" onclick="alert('The text you set here will appear below the key icon. For example, if you set CTRL+a, enter \'Select All\' here and the screen will show Select All instead of {CTRL}a.\r\n\r\nTo customize the key icon, place a PNG file with the same name in the app_icons folder in device storage.\r\nIcon format: PNG, resolution no larger than 64x64.');">
+    <img src="images/ask.png"/>
+  </a>
 </label>
 <br>
 <div id="aliasconainer" hidden="true">
     <input class="alias_input" type="text" >
 </div>
+<br><br>
 
 <!--
-  脚本配置
+  Script config
 -->
 <label id="customize_script">
-  <input type="checkbox" id="checkbox_script" name="script" onchange="checkbox_script_onChange(this)" />Script
+  <input type="checkbox" id="checkbox_script" name="script" onchange="checkbox_script_onChange(this)" />Configure script
+  <a href="javascript:void(0)" onclick="alert('If you need to perform a sequence of key and mouse actions (e.g. open browser, type URL and visit), you can do it easily with scripts.\r\nSee the User Manual for details.');">
+    <img src="images/ask.png"/>
+  </a>
+  <a href="https://www.eezbotfun.com/en/wiki/script-usage-guide" >
+    Script User Manual
+  </a>
 </label>
 <br>
 <div id="scriptconainer" hidden="true">
     <textarea class="script_input" name="Text1" cols="40" rows="5"></textarea>
 </div>
-
+<br>
 <!--
-  向设备发送配置
+  Send config to device
 -->
+<div class="wizard">
+  <label>Step 4: Save your configuration to the macro pad, so you can use it on any computer
+  </label> 
+</div>
   <div class="action">
-      <button id="saveConfigButton" hidden = "true">Save</button>
+      <button id="saveConfigButton"  hidden = "true">Save</button>
   </div>
  </div>
+ <br><br>
 
 
 
 <!--
-  RGB灯配置
+  RGB LED config
 -->
 <label id="customize_led">
-  <input type="checkbox" id="checkbox_customize" name="customize" onchange="checkbox_customize_onChange(this)" />Customize Background Color
+  <input type="checkbox" id="checkbox_customize" name="customize" onchange="checkbox_customize_onChange(this)" />Customize RGB back light color
 </label>
 <br>
 <div id="ledconainer" hidden="true">
@@ -127,9 +156,9 @@
       <button id="saveLedConfigButton">Customize</button>
     </div>
 </div>
-
+<br><br>
 <!--
-  升级firmware配置
+  Update firmware config
 -->
 <label id="update_firmware">
   <input type="checkbox" name="customize" onchange="checkbox_firmware_onChange(this)" />Update Firmware
@@ -145,15 +174,15 @@
 </div>
   
 <!--
-  设备回应显示
+  Device response display
 -->
 <div id="device_rsp"></div>
 
   
 
   <script src="index.js"></script>
-  <script src="kb.js" ></script>
   <script src="webserial.js"></script>
+  <script src="kb.js"></script>
   <script src="swatchy.js"></script>
   <script>
     Swatchy()
