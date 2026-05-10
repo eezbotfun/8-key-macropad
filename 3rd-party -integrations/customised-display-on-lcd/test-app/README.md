@@ -2,7 +2,7 @@
 
 Desktop utility to exercise the device **USB CDC `cus` framed protocol** described in:
 
-[`../../docs/host_usb_cdc_customised.md`](../../docs/host_usb_cdc_customised.md)
+[host_usb_cdc_customised.md`](../protocol/host_usb_cdc_customised.md)
 
 ## Requirements
 
