@@ -1,0 +1,105 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="CusProtocolTester.MainWindow"
+        Title="CUS USB CDC tester"
+        Width="560"
+        Height="900"
+        MinWidth="480"
+        MinHeight="520">
+  <DockPanel Margin="12">
+    <TextBlock DockPanel.Dock="Top" TextWrapping="Wrap" Margin="0,0,0,8"
+               Text="Send framed cus messages to the device (see docs/host_usb_cdc_customised.md)." />
+
+    <Border DockPanel.Dock="Bottom" Margin="0,8,0,0" Padding="8" BorderThickness="1"
+            BorderBrush="{DynamicResource SystemAccentColor}" CornerRadius="4">
+      <ScrollViewer MaxHeight="140">
+        <TextBox x:Name="LogBox" IsReadOnly="True" AcceptsReturn="True"
+                 TextWrapping="Wrap" MinHeight="120" />
+      </ScrollViewer>
+    </Border>
+
+    <ScrollViewer>
+      <StackPanel Spacing="10">
+        <TextBlock Text="Serial" FontWeight="Bold" />
+        <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto">
+          <TextBlock Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" Text="Port" />
+          <DockPanel Grid.Row="0" Grid.Column="1">
+            <Button DockPanel.Dock="Right" Margin="8,0,0,0" x:Name="RefreshPortsBtn" Content="Refresh" />
+            <ComboBox x:Name="PortCombo" />
+          </DockPanel>
+          <TextBlock Grid.Row="1" Grid.Column="0" VerticalAlignment="Center" Text="Baud" />
+          <TextBox Grid.Row="1" Grid.Column="1" x:Name="BaudBox" Text="115200" />
+          <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" Spacing="8">
+            <Button x:Name="OpenBtn" Content="Open" MinWidth="80" />
+            <Button x:Name="CloseBtn" Content="Close" MinWidth="80" IsEnabled="False" />
+          </StackPanel>
+        </Grid>
+
+        <Separator />
+
+        <TextBlock Text="Payload fields" FontWeight="Bold" />
+        <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto">
+          <TextBlock Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" Text="x" />
+          <TextBox Grid.Row="0" Grid.Column="1" x:Name="XBox" Text="0" />
+          <TextBlock Grid.Row="1" Grid.Column="0" VerticalAlignment="Center" Text="y" />
+          <TextBox Grid.Row="1" Grid.Column="1" x:Name="YBox" Text="0" />
+          <TextBlock Grid.Row="2" Grid.Column="0" VerticalAlignment="Center" Text="w" />
+          <TextBox Grid.Row="2" Grid.Column="1" x:Name="WBox" Text="480" />
+          <TextBlock Grid.Row="3" Grid.Column="0" VerticalAlignment="Center" Text="h" />
+          <TextBox Grid.Row="3" Grid.Column="1" x:Name="HBox" Text="200" />
+        </Grid>
+
+        <TextBlock Text="text" />
+        <TextBox x:Name="MessageTextBox" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="72"
+                 Watermark="UTF-8 label text" />
+
+        <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto">
+          <TextBlock Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" Text="fg" />
+          <TextBox Grid.Row="0" Grid.Column="1" x:Name="FgBox" Text="#FFFFFF" Watermark="#RRGGBB" />
+          <TextBlock Grid.Row="1" Grid.Column="0" VerticalAlignment="Center" Text="bg" />
+          <TextBox Grid.Row="1" Grid.Column="1" x:Name="BgBox" Text="#224466" Watermark="#RRGGBB" />
+        </Grid>
+
+        <TextBlock Text="align" />
+        <ComboBox x:Name="AlignCombo" />
+
+        <TextBlock Text="long_mode" />
+        <ComboBox x:Name="LongModeCombo" />
+
+        <CheckBox x:Name="ClearCanvasCheck" Content="clear_canvas (erase all stacked text panels on canvas)" />
+        <CheckBox x:Name="ActivateCheck" Content="activate (switch device to customised mode)" IsChecked="True" />
+
+        <TextBlock Text="border (panel outline)" FontWeight="Bold" />
+        <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto">
+          <TextBlock Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" Text="mode" />
+          <ComboBox Grid.Row="0" Grid.Column="1" x:Name="BorderModeCombo" />
+          <TextBlock Grid.Row="1" Grid.Column="0" VerticalAlignment="Center" Text="width (px)" />
+          <TextBox Grid.Row="1" Grid.Column="1" x:Name="BorderWidthBox" Text="2" Watermark="when mode = number" />
+          <TextBlock Grid.Row="2" Grid.Column="0" VerticalAlignment="Center" Text="border-color" />
+          <TextBox Grid.Row="2" Grid.Column="1" x:Name="BorderColorBox" Watermark="#RRGGBB (optional if border on)" />
+        </Grid>
+        <Grid ColumnDefinitions="Auto,*">
+          <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="border-radius" />
+          <TextBox Grid.Column="1" x:Name="BorderRadiusBox" Watermark="px; leave empty to omit key" />
+        </Grid>
+
+        <TextBlock Text="JSON payload (form fields → same UTF-8 as inside the cus frame)" FontWeight="Bold" />
+        <TextBox x:Name="JsonPreviewBox" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap"
+                 MinHeight="100" MaxHeight="220" FontFamily="Consolas, monospace" />
+
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <Button x:Name="RefreshPreviewBtn" Content="Refresh preview" MinWidth="120" />
+          <Button x:Name="SendBtn" Content="Send framed message" MinWidth="160" />
+        </StackPanel>
+
+        <Separator />
+
+        <TextBlock Text="Raw JSON (optional)" FontWeight="Bold" />
+        <TextBox x:Name="RawJsonBox" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="80"
+                 Watermark="e.g. {&quot;text&quot;:&quot;Hello&quot;,&quot;activate&quot;:true}"
+                 FontFamily="Consolas, monospace" />
+        <Button x:Name="SendRawBtn" Content="Send raw JSON (same framing)" HorizontalAlignment="Left" />
+      </StackPanel>
+    </ScrollViewer>
+  </DockPanel>
+</Window>
