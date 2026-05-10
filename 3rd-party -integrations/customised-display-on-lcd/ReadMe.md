@@ -5,3 +5,8 @@ For detailed information about this protocol, please refer to [Customised Displa
 This is an application example for interacting with AI tools.
 
 <img src="images/ai-message-mockup.JPG" width="400">
+
+To make debugging easier, I wrote a test program for sending protocol text to the Macropad.
+Feel free to use [alvononia base test app](test-app)
+
+[Test App UI](images/message-send-tester.JPG)
