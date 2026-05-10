@@ -4,4 +4,4 @@ For detailed information about this protocol, please refer to [Customised Displa
 
 This is an application example for interacting with AI tools.
 
-<img src="../images/message-send-tester.JPG" width="400">
+<img src="../images/ai-message-mockup.JPG" width="400">
