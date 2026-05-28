@@ -7,6 +7,21 @@ let port; // current SerialPort object
 let reader; // current port reader object so we can call .cancel() on it to interrupt port reading
 let profile = '0';
 let version_number = 0;
+/** How many profile tabs the device supports (from response line n=x). */
+let deviceProfileCount = 5;
+/** Max profile count from device (n=x); wire/protocol limit for sanity. */
+const DEVICE_PROFILE_REPORT_MAX = 255;
+/** Set when a line n=x is received after sending "l". Older firmware ignores "l" and never sends n=x — we keep the default 5 tabs (see scheduleProfileCountFallbackForLegacyDevices). */
+let profileCountReplyReceived = false;
+let profileCountFallbackTimer = null;
+
+/** Set false to silence [webserial] console logs */
+const WEBSERIAL_DEBUG = true;
+function wsLog() {
+  if (WEBSERIAL_DEBUG && typeof console !== 'undefined' && console.log) {
+    console.log.apply(console, ['[webserial]'].concat(Array.prototype.slice.call(arguments)));
+  }
+}
 
 /* 连接设备 */
 document.getElementById('connectButton').addEventListener('click', () => {
@@ -23,6 +38,8 @@ document.getElementById('disconnectButton').addEventListener('click', async () =
     reader.cancel();
     document.getElementById('connectButton').hidden = false;
     document.getElementById('disconnectButton').hidden = true;
+    resetProfileTabsToDefault();
+    clearProfileCountFallbackTimer();
   
 });
 function to_consumer_str(number){
@@ -100,12 +117,26 @@ function to_consumer_str(number){
   return str;
 }
 
-function handle_line(line){
-  //console.log('<<'+line+' ['+line.length+']');
+function handle_line(raw){
+  let line = typeof raw === 'string' ? raw.trim() : '';
+  if (!line.length) return;
+  wsLog('line in:', JSON.stringify(line), 'len=', line.length);
   let content = line.substring(2);
-  let cmd = line.charAt(0)
+  let cmd = line.charAt(0);
+  if (cmd === 'n' && /^n=\d+/.test(line)) {
+    const m = line.match(/^n=(\d+)/);
+    if (m) {
+      wsLog('matched profile count n=', m[1]);
+      onDeviceProfileCountLineReceived();
+      updateProfileTabsForDeviceCount(parseInt(m[1], 10));
+    } else {
+      wsLog('n= line but regex failed:', line);
+    }
+    return;
+  }
   switch(cmd){
       case 'v':
+        wsLog('version / v line (ignored by UI)');
         break;
       case 'a':
         document.getElementById("checkbox_alias").checked = true;
@@ -124,14 +155,16 @@ function handle_line(line){
         break;
 
       default:
+        wsLog('unhandled line (cmd=', cmd, '):', JSON.stringify(line));
         break;
   }
 }
 async function connectSerial() {
   const log = document.getElementById('device_rsp');
   log.textContent = "connecting" ;
+  wsLog('connectSerial: start');
   try {
-    const filter = { usbVendorId : 0x303a ,usbProductId : 18 };
+    const filter = { usbVendorId: 0x303a };
     port = await navigator.serial.requestPort({ filters: [filter] });
     
     await port.open({ baudRate: 115200 });
@@ -146,23 +179,35 @@ async function connectSerial() {
 
     portOpen = true;
     log.textContent = "Connected" ;
+    wsLog('port open, portOpen=', portOpen);
 
-    sendQuereVersion();
+    /* Profile stays '0' until a tab is clicked; users often skip Step 2 and Save appears to do nothing. */
+    applyProfileUI('1', document.querySelector('.tab .tablinks'), false);
+    updateProfileActionButtonsEnabled();
+
+    wsLog('sending version query…');
+    await sendQuereVersion();
+    wsLog('sending profile-count query (l)…');
+    await sendProfileCountQuery();
+    scheduleProfileCountFallbackForLegacyDevices();
     let rsp ="";
 
     while (portOpen && port.readable) {
       const { value, done } = await reader.read();
       if (value) {
         rsp += value;
-        //console.log('rsp : ', rsp);
-        if ( rsp.includes("\r\n") ){
-           
-           let idx = rsp.indexOf("\r\n");
-           let line = rsp.substring(0,idx);
-           //console.log('line='+line+'len='+line.length);
-           handle_line(line);
-           rsp = rsp.substring(idx+2);
-           //console.log('rsp='+rsp);
+        wsLog('read chunk, buffer length=', rsp.length, 'last chars=', JSON.stringify(rsp.slice(-120)));
+        while (true) {
+          var idx = rsp.indexOf('\r\n');
+          var sepLen = 2;
+          if (idx < 0) {
+            idx = rsp.indexOf('\n');
+            sepLen = 1;
+          }
+          if (idx < 0) break;
+          var line = rsp.substring(0, idx);
+          rsp = rsp.substring(idx + sepLen);
+          handle_line(line);
         }
       }
       if (done) {
@@ -186,41 +231,102 @@ async function connectSerial() {
     await port.close();
     console.log("port closed");
 } catch (error) {
+    wsLog('connectSerial error:', error);
     log.innerHTML = error;
     alert("Please make sure the configurator app is not running. Since the macro pad cannot simultaneously connect to both web configurator and app configurator.");
   }
 }
 
-/* 保存配置 */
-document.getElementById('saveConfigButton').addEventListener('click', () => {
-  if (navigator.serial) {
-    if (portOpen){
-      document.getElementById('saveConfigButton').hidden = true;
-      sendConfig();
-      document.getElementById('saveConfigButton').hidden = false;
-    }
-    else{
-      alert('Please connect the device first.');
-    }
-    
-  } else {
-    alert('Web Serial API not supported.');
+/* 保存配置 — await async sendConfig so errors surface; avoid racing the serial writer */
+(function wireSaveConfigButton() {
+  const saveBtn = document.getElementById('saveConfigButton');
+  if (!saveBtn) {
+    console.error('saveConfigButton missing from DOM');
+    return;
   }
-});
+  saveBtn.type = 'button';
+  saveBtn.addEventListener('click', async () => {
+    if (!navigator.serial) {
+      alert('Web Serial API not supported.');
+      return;
+    }
+    if (!portOpen) {
+      alert('Please connect the device first.');
+      return;
+    }
+    saveBtn.disabled = true;
+    try {
+      await sendConfig();
+    } catch (err) {
+      console.error(err);
+      const msg = err && err.message ? err.message : String(err);
+      const log = document.getElementById('device_rsp');
+      if (log) log.textContent = 'Save failed: ' + msg;
+      alert('Save failed: ' + msg);
+    } finally {
+      saveBtn.disabled = false;
+    }
+  });
+})();
 
-/* input_str的第4个字节需要预留，用于填写负荷长度 */
+(function wireAddProfileTabButton() {
+  var addBtn = document.getElementById('addProfileTabButton');
+  if (!addBtn) return;
+  addBtn.addEventListener('click', function () {
+    addProfileTabAndNotifyDevice().catch(function (err) {
+      console.error(err);
+    });
+  });
+})();
+
+(function wireRemoveProfileTabButton() {
+  var remBtn = document.getElementById('removeProfileTabButton');
+  if (!remBtn) return;
+  remBtn.addEventListener('click', function () {
+    deleteLastProfileAndNotifyDevice().catch(function (err) {
+      console.error(err);
+    });
+  });
+})();
+updateProfileActionButtonsEnabled();
+
+/** PAYLOAD_LEN on the wire is exactly one byte; value = COMMAND length in bytes, range 0..255 inclusive. */
+const EBF_PAYLOAD_LEN_MAX = 255;
+
+function assertEbfCommandByteLength(commandByteLength, context) {
+  if (commandByteLength < 0 || commandByteLength > EBF_PAYLOAD_LEN_MAX) {
+    const msg = (context || 'ebf') + ': COMMAND byte length ' + commandByteLength + ' is out of PAYLOAD_LEN range 0..' + EBF_PAYLOAD_LEN_MAX;
+    console.error(msg);
+    throw new Error(msg);
+  }
+}
+
+/**
+ * On-wire layout: [MAGIC_STR][PAYLOAD_LEN][COMMAND]
+ * MAGIC_STR = "ebf" (3 bytes). PAYLOAD_LEN = fixed 1 byte, 0..255 = byte length of COMMAND.
+ * COMMAND = bytes from index 4 to end of frame.
+ * input_str is built as "ebf" + placeholder + COMMAND; byte at index 3 is overwritten with PAYLOAD_LEN.
+ */
 function toU8Array(input_str){
   let len = input_str.length;
+  const commandByteLength = len - 4;
+  assertEbfCommandByteLength(commandByteLength, 'toU8Array');
   let u8Array = new Uint8Array(len);
 
   for (let i = 0; i < len; i++) {
     u8Array[i] = input_str.charCodeAt(i);
   }
-  
-  // 填写协议里 负荷长度（不包含 magic_str 以及长度本身这个字节）
-  u8Array[3] = len - 4; //
-  //console.log("u8Array : ",u8Array);
+
+  u8Array[3] = commandByteLength;
   return u8Array;
+}
+
+/**
+ * Build a full ebf frame where COMMAND is an ASCII/Latin1 string (one char = one byte).
+ * PAYLOAD_LEN is one byte, so COMMAND length must be 0..255 (enforced in toU8Array).
+ */
+function ebfFrameFromCommand(commandStr) {
+  return toU8Array('ebf' + '0' + commandStr);
 }
 /* 发送按键定义配置到设备端 */
 // Send a string over the serial port.
@@ -229,43 +335,38 @@ async function sendConfig() {
   let input = document.querySelector(".input").value// get the string to send from the term_input textarea
 
   if (!is_valid(input)){
+      alert("Invalid Input.");
       return;
   }
   if ( '0' == profile ){
-    alert("请先选择按键所在布局（第二步）");
+    alert("Please select a profile (layout) in Step 2 by clicking 1–5 above.");
     return;
   }
 
-  //console.log("input : ",input);
+  console.log("input : ",input);
   let encoded = encode(input);
-  if (encoded==''){
+  if (encoded === '') {
+    alert('Could not build config (e.g. invalid media key combination).');
     return;
   }
-  //console.log("sending encoded : ",encoded);
-  // Get a text encoder, pipe it to the SerialPort object, and get a writer
-  //const textEncoder = new TextEncoderStream();
-  //const writableStreamClosed = textEncoder.readable.pipeTo(port.writable);
-  //const writer = textEncoder.writable.getWriter();
+  console.log("sending encoded : ",encoded);
   writer = port.writable.getWriter();
+  try {
+    await writer.write(toU8Array(encoded));
 
-  // write the encoded to the writer  
-  await writer.write(toU8Array(encoded));
+    let enable =  !document.getElementById('aliasconainer').hidden;
+    let alias = document.querySelector(".alias_input").value;
+    let encodedAliasConfig = encodeAliasConfig(enable, alias);
+    await writer.write((encodedAliasConfig));
 
-  let enable =  !document.getElementById('aliasconainer').hidden;
-  let alias = document.querySelector(".alias_input").value;
-  let encodedAliasConfig = encodeAliasConfig(enable, alias);
-  await writer.write((encodedAliasConfig));
-
-  enable =  !document.getElementById('scriptconainer').hidden;
-  let script = document.querySelector(".script_input").value;
-  let encodedScriptConfig = encodeScriptConfig(enable, script);
-  await writer.write(toU8Array(encodedScriptConfig));
-  
-  // close the writer since we're done sending for now
-  writer.releaseLock();
-
-  //writer.close();
-  //await writableStreamClosed;
+    enable =  !document.getElementById('scriptconainer').hidden;
+    let script = document.querySelector(".script_input").value;
+    let encodedScriptConfig = encodeScriptConfig(enable, script);
+    await writer.write(toU8Array(encodedScriptConfig));
+  } finally {
+    writer.releaseLock();
+  }
+  await sendEnableHidMode();
 }
 /* 发送按键别名配置到设备端 */
 async function sendAliasConfig(enable) {
@@ -297,23 +398,306 @@ async function sendWifiConfig() {
   writer.releaseLock();
 }
 
-/* 发送获取设备版本号 */
+/* Enable HID mode — COMMAND = a{profile_id}.{key_id} e.g. a3.1 (ebf frame) */
+async function sendEnableHidMode() {
+  if (!portOpen || profile === '0') {
+    return;
+  }
+  const cmd = 'a' + profile + '.' + top.keyNumber;
+  if (cmd.includes('undefined')) {
+    console.log('sendEnableHidMode: invalid cmd');
+    return;
+  }
+  wsLog('sendEnableHidMode: ebf frame COMMAND=', JSON.stringify(cmd));
+  const u8Array = ebfFrameFromCommand(cmd);
+  writer = port.writable.getWriter();
+  try {
+    await writer.write(u8Array);
+  } finally {
+    writer.releaseLock();
+  }
+}
+
+/* 发送获取设备版本号 — COMMAND byte '5' */
 async function sendQuereVersion() {
-  
-  /* 首字节插入 "ebf"type , 共4个字节 */
-  /* 形如：[MAGIC_STR][TYPE][KEY_NUM]:CONFIG 
-  如：ebf01.1:复制 (MAGIC_STR=ebf, KEY_NUM=1)*/
-  let encoded = "ebf";  
-  encoded += '0';//PAYLOAD_LEN
-  encoded += '5';//type = 5 wifi配置
- 
-  //console.log("encoded : ",encoded);
-  let u8Array = toU8Array(encoded)
-
-
+  wsLog('sendQuereVersion: ebf frame COMMAND=', JSON.stringify('5'));
+  const u8Array = ebfFrameFromCommand('5');
   writer = port.writable.getWriter();
   await writer.write(u8Array);
   writer.releaseLock();
+}
+
+/**
+ * Ask device how many profiles exist; COMMAND is 'l'. Device may reply with line n=x.
+ * Older firmware: no n=x (see scheduleProfileCountFallbackForLegacyDevices).
+ */
+async function sendProfileCountQuery() {
+  const u8Array = ebfFrameFromCommand('l');
+  wsLog('sendProfileCountQuery: ebf frame bytes', Array.from(u8Array));
+  writer = port.writable.getWriter();
+  try {
+    await writer.write(u8Array);
+    wsLog('sendProfileCountQuery: write done');
+  } finally {
+    writer.releaseLock();
+  }
+}
+
+/** Tell device total profile count: COMMAND = "m" + count as decimal string (ebf framing). */
+async function sendDeviceProfileCountCommand(totalProfiles) {
+  var cmd = 'm' + String(totalProfiles);
+  wsLog('sendDeviceProfileCountCommand:', JSON.stringify(cmd));
+  const u8Array = ebfFrameFromCommand(cmd);
+  writer = port.writable.getWriter();
+  try {
+    await writer.write(u8Array);
+    wsLog('sendDeviceProfileCountCommand: write done');
+  } finally {
+    writer.releaseLock();
+  }
+}
+
+function clearProfileCountFallbackTimer() {
+  if (profileCountFallbackTimer) {
+    wsLog('clearProfileCountFallbackTimer');
+    clearTimeout(profileCountFallbackTimer);
+    profileCountFallbackTimer = null;
+  }
+}
+
+function onDeviceProfileCountLineReceived() {
+  wsLog('onDeviceProfileCountLineReceived: got n=x');
+  profileCountReplyReceived = true;
+  clearProfileCountFallbackTimer();
+}
+
+/** If no n=x arrives after "l", assume older firmware and leave all 5 profile tabs visible. */
+function scheduleProfileCountFallbackForLegacyDevices() {
+  clearProfileCountFallbackTimer();
+  profileCountReplyReceived = false;
+  wsLog('scheduleProfileCountFallbackForLegacyDevices: 2.5s fallback if no n=x');
+  profileCountFallbackTimer = setTimeout(function () {
+    profileCountFallbackTimer = null;
+    if (!portOpen || profileCountReplyReceived) {
+      wsLog('legacy fallback skipped (portOpen=', portOpen, 'profileCountReplyReceived=', profileCountReplyReceived, ')');
+      return;
+    }
+    wsLog('legacy fallback: no n=x, restoring 5 profile tabs');
+    resetProfileTabsToDefault();
+    var cur = parseInt(profile, 10);
+    if (!Number.isFinite(cur) || cur < 1) cur = 1;
+    cur = Math.min(cur, 5);
+    var tabBtns = document.querySelectorAll('.tab .tablinks');
+    if (tabBtns[cur - 1]) {
+      applyProfileUI(String(cur), tabBtns[cur - 1], false);
+    }
+  }, 2500);
+}
+
+function getProfileTabBar() {
+  return document.querySelector('.tab');
+}
+
+function getProfileTabCount() {
+  var bar = getProfileTabBar();
+  return bar ? bar.querySelectorAll('.tablinks').length : 0;
+}
+
+/** Create tab button + tabcontent for profiles (existingCount+1)..targetCount. Inserts content before #kb1. */
+function ensureProfileSlotsThrough(targetCount) {
+  var bar = getProfileTabBar();
+  if (!bar || !Number.isFinite(targetCount) || targetCount < 1) return;
+  var existing = bar.querySelectorAll('.tablinks').length;
+  var keyboardRow = document.getElementById('kb1');
+  var parent = keyboardRow && keyboardRow.parentNode;
+  var insertBeforeRef = document.getElementById('addProfileTabButton')
+    || document.getElementById('removeProfileTabButton');
+  for (var num = existing + 1; num <= targetCount; num++) {
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'tablinks';
+    btn.textContent = String(num);
+    btn.setAttribute('onclick', "setProfile(event, '" + num + "')");
+    if (insertBeforeRef && insertBeforeRef.parentNode === bar) {
+      bar.insertBefore(btn, insertBeforeRef);
+    } else {
+      bar.appendChild(btn);
+    }
+    var content = document.createElement('div');
+    content.id = String(num);
+    content.className = 'tabcontent';
+    if (document.querySelector('[id="1"] label')) {
+      var lab = document.createElement('label');
+      lab.textContent = '您正在配置键盘布局 ' + num;
+      content.appendChild(lab);
+    } else {
+      var h3 = document.createElement('h3');
+      h3.textContent = 'You are configuring Profile ' + num;
+      content.appendChild(h3);
+    }
+    if (keyboardRow && parent) {
+      parent.insertBefore(content, keyboardRow);
+    } else {
+      bar.parentNode.insertBefore(content, bar.nextSibling);
+    }
+  }
+}
+
+/** Remove profile UI slots with index > maxKeep (dynamic slots only; base 1..5 stay in HTML). */
+function pruneProfileSlotsAbove(maxKeep) {
+  var bar = getProfileTabBar();
+  if (!bar) return;
+  var btns = Array.from(bar.querySelectorAll('.tablinks'));
+  btns.forEach(function (btn) {
+    var n = parseInt(btn.textContent.trim(), 10);
+    if (Number.isFinite(n) && n > maxKeep) {
+      btn.remove();
+      var tc = document.getElementById(String(n));
+      if (tc && tc.classList.contains('tabcontent')) {
+        tc.remove();
+      }
+    }
+  });
+}
+
+function updateProfileActionButtonsEnabled() {
+  var n = getProfileTabCount();
+  var rem = document.getElementById('removeProfileTabButton');
+  var add = document.getElementById('addProfileTabButton');
+  if (rem) rem.disabled = n <= 1;
+  if (add) add.disabled = n >= DEVICE_PROFILE_REPORT_MAX;
+}
+
+function resetProfileTabsToDefault() {
+  wsLog('resetProfileTabsToDefault: deviceProfileCount=5, prune slots > 5');
+  deviceProfileCount = 5;
+  pruneProfileSlotsAbove(5);
+  ensureProfileSlotsThrough(5);
+  var tabBtns = document.querySelectorAll('.tab .tablinks');
+  var i;
+  for (i = 0; i < tabBtns.length; i++) {
+    tabBtns[i].style.display = '';
+    tabBtns[i].hidden = false;
+  }
+  updateProfileActionButtonsEnabled();
+}
+
+function updateProfileTabsForDeviceCount(rawCount) {
+  var n = parseInt(rawCount, 10);
+  if (!Number.isFinite(n) || n < 1) n = 1;
+  if (n > DEVICE_PROFILE_REPORT_MAX) n = DEVICE_PROFILE_REPORT_MAX;
+  wsLog('updateProfileTabsForDeviceCount: raw=', rawCount, '→ using n=', n);
+  ensureProfileSlotsThrough(n);
+  deviceProfileCount = n;
+  var tabBtns = document.querySelectorAll('.tab .tablinks');
+  var i;
+  for (i = 0; i < tabBtns.length; i++) {
+    var num = i + 1;
+    if (num > n) {
+      tabBtns[i].style.display = 'none';
+      tabBtns[i].hidden = true;
+    } else {
+      tabBtns[i].style.display = '';
+      tabBtns[i].hidden = false;
+    }
+  }
+  document.querySelectorAll('.tabcontent').forEach(function (tc) {
+    var tid = parseInt(tc.id, 10);
+    if (!Number.isFinite(tid)) return;
+    if (tid > n) tc.style.display = 'none';
+  });
+  var cur = parseInt(profile, 10);
+  if (!Number.isFinite(cur)) cur = 1;
+  if (cur > n) {
+    applyProfileUI(String(n), tabBtns[n - 1], true);
+  } else {
+    applyProfileUI(String(cur), tabBtns[cur - 1], false);
+  }
+  updateProfileActionButtonsEnabled();
+}
+
+async function deleteLastProfileAndNotifyDevice() {
+  if (!portOpen) {
+    alert('Please connect the device first.');
+    return;
+  }
+  var n = getProfileTabCount();
+  if (n <= 1) {
+    alert('At least one profile must remain.');
+    return;
+  }
+  var newN = n - 1;
+  if (!window.confirm('Remove profile ' + n + '? Total profiles will become ' + newN + ' on this page and the device.')) {
+    return;
+  }
+  pruneProfileSlotsAbove(newN);
+  deviceProfileCount = newN;
+  var tabBtns = document.querySelectorAll('.tab .tablinks');
+  var i;
+  for (i = 0; i < tabBtns.length; i++) {
+    tabBtns[i].hidden = false;
+    tabBtns[i].style.display = '';
+  }
+  document.querySelectorAll('.tabcontent').forEach(function (tc) {
+    var tid = parseInt(tc.id, 10);
+    if (!Number.isFinite(tid)) return;
+    if (tid > newN) {
+      tc.style.display = 'none';
+    }
+  });
+  var cur = parseInt(profile, 10);
+  if (!Number.isFinite(cur)) cur = 1;
+  try {
+    await sendDeviceProfileCountCommand(newN);
+  } catch (err) {
+    console.error(err);
+    alert('Failed to notify device: ' + (err.message ? err.message : String(err)));
+  }
+  tabBtns = document.querySelectorAll('.tab .tablinks');
+  if (cur > newN) {
+    applyProfileUI(String(newN), tabBtns[newN - 1], true);
+  } else {
+    applyProfileUI(String(cur), tabBtns[cur - 1], true);
+  }
+  updateProfileActionButtonsEnabled();
+}
+
+async function addProfileTabAndNotifyDevice() {
+  if (!portOpen) {
+    alert('Please connect the device first.');
+    return;
+  }
+  var n = getProfileTabCount();
+  if (n >= DEVICE_PROFILE_REPORT_MAX) {
+    alert('Maximum profile count reached (' + DEVICE_PROFILE_REPORT_MAX + ').');
+    return;
+  }
+  var newN = n + 1;
+  ensureProfileSlotsThrough(newN);
+  deviceProfileCount = newN;
+  var tabBtns = document.querySelectorAll('.tab .tablinks');
+  var i;
+  for (i = 0; i < tabBtns.length; i++) {
+    var num = i + 1;
+    tabBtns[i].hidden = num > newN;
+    tabBtns[i].style.display = num > newN ? 'none' : '';
+  }
+  document.querySelectorAll('.tabcontent').forEach(function (tc) {
+    var tid = parseInt(tc.id, 10);
+    if (!Number.isFinite(tid)) return;
+    if (tid > newN) {
+      tc.style.display = 'none';
+    }
+  });
+  try {
+    await sendDeviceProfileCountCommand(newN);
+  } catch (err) {
+    console.error(err);
+    alert('Failed to notify device: ' + (err.message ? err.message : String(err)));
+  }
+  tabBtns = document.querySelectorAll('.tab .tablinks');
+  applyProfileUI(String(newN), tabBtns[newN - 1], true);
+  updateProfileActionButtonsEnabled();
 }
 
 /* 发送获取配置 */
@@ -325,19 +709,12 @@ async function sendQuereCfg() {
   /* 首字节插入 "ebf"type , 共4个字节 */
   /* 形如：[MAGIC_STR][TYPE][KEY_NUM]:CONFIG 
   如：ebf01.1:复制 (MAGIC_STR=ebf, KEY_NUM=1)*/
-  let encoded = "ebf";  
-  encoded += '0';//PAYLOAD_LEN
-  encoded += '8';
-  encoded += profile;
-  encoded += ".";
-  encoded += top.keyNumber;
-
-  if (encoded.includes("undefined")){
+  const cmd = '8' + profile + '.' + top.keyNumber;
+  if (cmd.includes("undefined")){
     console.log("has undefined");
     return;
   }
-  //console.log("sendQuereCfg : "+profile+'.'+top.keyNumber);
-  let u8Array = toU8Array(encoded)
+  const u8Array = ebfFrameFromCommand(cmd);
 
   writer = port.writable.getWriter();
   await writer.write(u8Array);
@@ -374,6 +751,7 @@ async function sendLedConfig(){
   writer = port.writable.getWriter();
   await writer.write(u8Array);
   writer.releaseLock();
+  await sendEnableHidMode();
 }
 
 document.getElementById('saveLedConfigButton').addEventListener('click', () => {
@@ -560,7 +938,7 @@ function encode(input){
 
   if ( consumerCtrlNum ){
     if (consumerCtrlNum > 1){
-      alert("多媒体按键只能单独使用");
+      alert("Media or consumer keys can only be used alone.");
       return "";
     }
     replaced = replaceConsumerCtrl(input);
@@ -595,7 +973,7 @@ function encode(input){
 /* 转换成设备可识别配置字符串 */
 function encodeAliasConfig(enable,input){
 
-  //console.log("encodeAliasConfig : input = "+ input + " len = " + input.length);
+  console.log("encodeAliasConfig : input = "+ input + " len = " + input.length);
 
   var alias = new TextEncoder("utf-8").encode(input);
   //console.log(alias ); 
@@ -637,7 +1015,9 @@ function encodeAliasConfig(enable,input){
   //console.log("u8Array = ",u8Array);
   
   if ( enable ){
-    u8Array[3] = len - 4 + alias_array.length; //
+    const aliasCmdBytes = len - 4 + alias_array.length;
+    assertEbfCommandByteLength(aliasCmdBytes, 'encodeAliasConfig(enable)');
+    u8Array[3] = aliasCmdBytes;
     let concatArray = new Uint8Array( u8Array.length + alias_array.length );
     concatArray.set(u8Array);
     concatArray.set(alias_array,u8Array.length);
@@ -645,7 +1025,8 @@ function encodeAliasConfig(enable,input){
     return concatArray;
   }
   else{
-    u8Array[3] = len - 4; 
+    assertEbfCommandByteLength(len - 4, 'encodeAliasConfig(disable)');
+    u8Array[3] = len - 4;
     return u8Array;     
   }
   
@@ -714,33 +1095,38 @@ function ascii_to_hex(str)
 	return arr1.join('');
 }
 
-function setProfile(evt, profileNum) {
-  // Declare all variables
-  var i, tabcontent, tablinks;
-  if (!portOpen){
-    alert('请先连接键盘');
+function applyProfileUI(profileNum, tabButtonElement, queryCfg) {
+  var psel = parseInt(profileNum, 10);
+  if (!Number.isFinite(psel) || psel < 1 || psel > deviceProfileCount) {
     return;
   }
-
-  // Get all elements with class="tabcontent" and hide them
+  var i, tabcontent, tablinks;
   tabcontent = document.getElementsByClassName("tabcontent");
   for (i = 0; i < tabcontent.length; i++) {
     tabcontent[i].style.display = "none";
   }
-
-  // Get all elements with class="tablinks" and remove the class "active"
-  tablinks = document.getElementsByClassName("tablinks");
+  tablinks = document.querySelectorAll('.tab .tablinks');
   for (i = 0; i < tablinks.length; i++) {
     tablinks[i].className = tablinks[i].className.replace(" active", "");
   }
-
-  // Show the current tab, and add an "active" class to the button that opened the tab
   document.getElementById(profileNum).style.display = "block";
-  evt.currentTarget.className += " active";
-
+  if (tabButtonElement) {
+    tabButtonElement.className += " active";
+  }
   profile = profileNum;
-  //console.log("current profile = "+profile);
-  
-  sendQuereCfg();
-  
+  if (queryCfg !== false) {
+    sendQuereCfg();
+  }
+}
+
+function setProfile(evt, profileNum) {
+  if (!portOpen){
+    alert('Please connect the device first.');
+    return;
+  }
+  if (parseInt(profileNum, 10) > deviceProfileCount) {
+    alert('This profile is not available on the connected device.');
+    return;
+  }
+  applyProfileUI(profileNum, evt.currentTarget);
 }

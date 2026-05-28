@@ -88,29 +88,64 @@
     text-align: center;
 }
 
-/* Style the tab */
+/* Style the tab — flex + wrap so many profiles (e.g. n=10) fit */
 .tab {
     overflow: hidden;
     background-color: #f1f1f1;
-    width: 200px;
+    min-width: 200px;
+    max-width: 720px;
+    width: auto;
     margin: auto;
     border-radius: 6px;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
   }
   
   /* Style the buttons that are used to open the tab content */
   .tab button {
     background-color: inherit;
-    float: left;
+    float: none;
     border: none;
     outline: none;
     cursor: pointer;
-    padding: 14px 16px;
+    padding: 10px 12px;
     transition: 0.3s;
   }
   
   /* Change background color of buttons on hover */
   .tab button:hover {
     background-color: #ddd;
+  }
+
+  .tab button.tab-add-profile {
+    font-weight: bold;
+    font-size: 1.15em;
+    line-height: 1;
+    min-width: 2.25em;
+    color: #1a6b1a;
+  }
+
+  .tab button.tab-add-profile:hover {
+    background-color: #cfe8cf;
+  }
+
+  .tab button.tab-remove-profile {
+    font-weight: bold;
+    font-size: 1.15em;
+    line-height: 1;
+    min-width: 2.25em;
+    color: #a32a2a;
+  }
+
+  .tab button.tab-remove-profile:hover:not(:disabled) {
+    background-color: #f0d0d0;
+  }
+
+  .tab button.tab-remove-profile:disabled,
+  .tab button.tab-add-profile:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
   }
   
   /* Create an active/current tablink class */
@@ -324,4 +359,29 @@ hr {
 .wizard{
   margin: 20px;
   color: blue;
+}
+.wizard-manual {
+  text-align: center;
+  margin-bottom: 8px;
+}
+.user-manual-link {
+  display: inline-block;
+  padding: 8px 16px;
+  color: #1565c0;
+  text-decoration: none;
+  font-weight: 600;
+  border: 1px solid #1565c0;
+  border-radius: 6px;
+  background: rgba(21, 101, 192, 0.08);
+  transition: background 0.2s, color 0.2s;
+}
+.user-manual-link:hover {
+  background: #1565c0;
+  color: white;
+}
+.user-manual-link:visited {
+  color: #1565c0;
+}
+.user-manual-link:visited:hover {
+  color: white;
 }

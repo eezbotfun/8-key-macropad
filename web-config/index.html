@@ -14,8 +14,8 @@
 <body>
   <div class="container">
 
-  <div class="wizard">
-      <a href="https://www.eezbotfun.com/en/wiki/8-key-macro-pad-user-manual" target="_blank" rel="noopener">User Manual</a>
+  <div class="wizard wizard-manual">
+      <a class="user-manual-link" href="https://www.eezbotfun.com/en/wiki/8-key-macro-pad-user-manual" target="_blank" rel="noopener">User Manual</a>
   </div>
   <div class="wizard">
       <label>Step 1: Connect Macro Pad</label> 
@@ -36,6 +36,8 @@
     <button class="tablinks" onclick="setProfile(event, '3')">3</button>
     <button class="tablinks" onclick="setProfile(event, '4')">4</button>
     <button class="tablinks" onclick="setProfile(event, '5')">5</button>
+    <button type="button" id="addProfileTabButton" class="tab-add-profile" title="Add profile">+</button>
+    <button type="button" id="removeProfileTabButton" class="tab-remove-profile" title="Remove last profile">-</button>
 
   </div>
 
@@ -97,7 +99,7 @@
 -->
 <label id="customize_alias">
   <input type="checkbox" id="checkbox_alias" name="customize" onchange="checkbox_alias_onChange(this)" />Configure display name
-  <a href="javascript:void(0)" onclick="alert('The text you set here will appear below the key icon. For example, if you set CTRL+a, enter \'Select All\' here and the screen will show Select All instead of {CTRL}a.\r\n\r\nTo customize the key icon, place a PNG file with the same name in the app_icons folder in device storage.\r\nIcon format: PNG, resolution no larger than 64x64.');">
+  <a href="javascript:void(0)" onclick="alert('The text you set here will appear below the key icon. For example, if you set CTRL+a, enter \'Select All\' here and the screen will show Select All instead of {CTRL}a.\r\n\r\nTo customize the key icon, place a PNG file with the name profile_x_key_y.png in the app_icons folder where x is the profile number and y is the key number. For example, profile_3_key_1.png means this is icon of the first key of profile 3.\r\nIcon format: PNG, resolution no larger than 64x64.');">
     <img src="images/ask.png"/>
   </a>
 </label>
@@ -116,7 +118,7 @@
     <img src="images/ask.png"/>
   </a>
   <a href="https://www.eezbotfun.com/en/wiki/script-usage-guide" >
-    Script User Manual
+    Script Usage Guide
   </a>
 </label>
 <br>
@@ -132,7 +134,7 @@
   </label> 
 </div>
   <div class="action">
-      <button id="saveConfigButton"  hidden = "true">Save</button>
+      <button type="button" id="saveConfigButton" hidden="true">Save</button>
   </div>
  </div>
  <br><br>
