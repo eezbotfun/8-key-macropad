@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>HardwareMonitor.Windows</RootNamespace>
+    <AssemblyName>HardwareMonitor.Windows.Core</AssemblyName>
+    <IsPublishable>false</IsPublishable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="LibreHardwareMonitorLib" Version="0.9.4" />
+    <PackageReference Include="System.Diagnostics.PerformanceCounter" Version="8.0.0" />
+    <PackageReference Include="System.Management" Version="9.0.0" />
+    <PackageReference Include="System.ServiceProcess.ServiceController" Version="8.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\HardwareMonitor.Windows\Hardware\**\*.cs" Link="Hardware\%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="..\HardwareMonitor.Windows\Ezbf\**\*.cs" Link="Ezbf\%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="..\HardwareMonitor.Windows\Interop\**\*.cs" Link="Interop\%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="..\HardwareMonitor.Windows\Models\**\*.cs" Link="Models\%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="..\HardwareMonitor.Windows\Services\**\*.cs" Link="Services\%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+
+</Project>

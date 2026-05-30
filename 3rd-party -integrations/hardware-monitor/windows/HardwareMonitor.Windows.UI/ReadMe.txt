@@ -7,17 +7,9 @@ to display real-time system status.
 Implementations
 ---------------
   Windows (recommended)
-    Single app: HardwareMonitor.exe (windows/ — run publish.ps1)
+    C# service + settings UI in windows/
     Uses LibreHardwareMonitorLib in-process for CPU/GPU/storage/network sensors.
-    User guide: docs/WINDOWS_PLUGIN_HELP.md
+    See windows/README.md for build, install, and sensor details.
     Upstream library: https://github.com/LibreHardwareMonitor/LibreHardwareMonitor
     License: Mozilla Public License 2.0 (MPL-2.0)
       https://github.com/LibreHardwareMonitor/LibreHardwareMonitor/blob/master/LICENSE
-
-  Python (reference)
-    temperature_monitor.py — WMI / NVML based prototype; less accurate than the
-    Windows native build. Build with build_exe.ps1 if needed.
-
-  Other platforms
-    See docs/STANDALONE_PLUGINS.md for per-OS guidance and the shared JSON/EZBF
-    protocol contract (schemas/pc-status-event.example.json).

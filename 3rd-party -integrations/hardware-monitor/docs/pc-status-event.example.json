@@ -1,0 +1,44 @@
+{
+  "time": 1710000000,
+  "board": {
+    "temp": 52.0,
+    "rpm": 1200.0,
+    "tick": 1
+  },
+  "cpu": {
+    "temp": 52.0,
+    "tempMax": 78.0,
+    "load": 12.5,
+    "consume": 22.5,
+    "tjMax": 100,
+    "core1DistanceToTjMax": 23.0,
+    "core1Temp": 77.0
+  },
+  "gpu": {
+    "temp": 45.0,
+    "tempMax": 72.0,
+    "load": 8.0,
+    "consume": 35.5,
+    "rpm": 0.0,
+    "memUsed": 2048.0,
+    "memTotal": 8192.0,
+    "freq": 2100.0
+  },
+  "storage": {
+    "temp": 38.0,
+    "read": 1024.0,
+    "write": 512.0,
+    "percent": 65.0
+  },
+  "memory": {
+    "used": 8.5,
+    "avail": 7.5,
+    "percent": 53.1
+  },
+  "network": {
+    "up": 872.0,
+    "down": 12697.6,
+    "linkUp": 1.0
+  },
+  "cmd": 1230
+}
