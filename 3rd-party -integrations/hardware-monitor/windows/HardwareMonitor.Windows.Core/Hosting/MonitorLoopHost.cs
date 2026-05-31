@@ -8,7 +8,6 @@ namespace HardwareMonitor.Windows.Hosting;
 public sealed class MonitorLoopHost : IDisposable
 {
     private readonly object _gate = new();
-    private MonitorEngine? _engine;
     private CancellationTokenSource? _cts;
     private Task? _loopTask;
     private RuntimeStatus? _latestStatus;
@@ -46,10 +45,14 @@ public sealed class MonitorLoopHost : IDisposable
                 return;
             }
 
-            _engine ??= new MonitorEngine();
+            PublishStatus(new RuntimeStatus
+            {
+                UpdatedAt = DateTimeOffset.Now,
+                LastSummary = "Initializing hardware sensors…",
+            });
+
             _cts = new CancellationTokenSource();
-            MonitorEngine engine = _engine;
-            _loopTask = Task.Run(() => RunLoopAsync(engine, _cts.Token));
+            _loopTask = Task.Run(() => RunLoopAsync(_cts.Token));
         }
     }
 
@@ -90,11 +93,6 @@ public sealed class MonitorLoopHost : IDisposable
     public void Dispose()
     {
         StopAsync().GetAwaiter().GetResult();
-        lock (_gate)
-        {
-            _engine?.Dispose();
-            _engine = null;
-        }
     }
 
     private void PublishStatus(RuntimeStatus status)
@@ -109,20 +107,28 @@ public sealed class MonitorLoopHost : IDisposable
         handler?.Invoke(this, status);
     }
 
-    private async Task RunLoopAsync(MonitorEngine engine, CancellationToken stoppingToken)
+    private async Task RunLoopAsync(CancellationToken stoppingToken)
     {
+        using MonitorEngine engine = new();
+
         while (!stoppingToken.IsCancellationRequested)
         {
             MonitorSettings settings = MonitorSettingsStore.Load();
 
             try
             {
-                MonitorTickResult tick = engine.RunOnce(settings);
+                MonitorTickResult tick = engine.RunOnce(settings, PublishStatus);
                 PublishStatus(tick.Status);
             }
-            catch
+            catch (Exception ex)
             {
-                // Keep looping; next tick may succeed when configurator connects.
+                PublishStatus(new RuntimeStatus
+                {
+                    UpdatedAt = DateTimeOffset.Now,
+                    PipeConnected = false,
+                    LastError = ex.Message,
+                    LastSummary = "Sensor read failed",
+                });
             }
 
             try

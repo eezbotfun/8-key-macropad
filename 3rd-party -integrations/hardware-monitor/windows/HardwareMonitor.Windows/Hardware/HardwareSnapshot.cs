@@ -37,4 +37,5 @@ public sealed class HardwareSnapshot
     public int NetworkLinksTotal { get; init; }
 
     public float BoardFanRpm { get; init; }
+    public float? MotherboardTempC { get; init; }
 }

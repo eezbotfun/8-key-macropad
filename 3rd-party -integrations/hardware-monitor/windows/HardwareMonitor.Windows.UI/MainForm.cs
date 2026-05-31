@@ -18,6 +18,8 @@ internal sealed class MainForm : Form
     private readonly Label _pipeLabel = new() { AutoSize = true, Text = "Waiting for first reading…" };
     private readonly Label _cpuLabel = new() { AutoSize = true, Text = "—" };
     private readonly Label _gpuLabel = new() { AutoSize = true, Text = "—" };
+    private readonly Label _motherboardLabel = new() { AutoSize = true, Text = "—" };
+    private readonly Label _fanLabel = new() { AutoSize = true, Text = "—" };
     private readonly Label _memoryLabel = new() { AutoSize = true, Text = "—" };
     private readonly Label _storageLabel = new() { AutoSize = true, Text = "—" };
     private readonly Label _networkLabel = new() { AutoSize = true, Text = "—" };
@@ -33,8 +35,8 @@ internal sealed class MainForm : Form
 
         Text = "EezBotFun Hardware Monitor";
         Icon = AppIcons.Default;
-        ClientSize = new Size(ContentWidth + FormPadding, 740);
-        MinimumSize = new Size(ContentWidth + FormPadding, 740);
+        ClientSize = new Size(ContentWidth + FormPadding, 804);
+        MinimumSize = new Size(ContentWidth + FormPadding, 804);
         FormBorderStyle = FormBorderStyle.FixedDialog;
         MaximizeBox = false;
         StartPosition = FormStartPosition.CenterScreen;
@@ -115,7 +117,7 @@ internal sealed class MainForm : Form
 
     private GroupBox BuildLiveReadingsGroup()
     {
-        const int metricRows = 8;
+        const int metricRows = 10;
         int groupHeight = 28 + metricRows * MetricRowHeight + 12;
 
         GroupBox group = new()
@@ -132,7 +134,7 @@ internal sealed class MainForm : Form
             ColumnCount = 2,
             RowCount = metricRows,
         };
-        metrics.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 72));
+        metrics.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 88));
         metrics.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
 
         for (int i = 0; i < metricRows; i++)
@@ -143,11 +145,13 @@ internal sealed class MainForm : Form
         AddMetricRow(metrics, 0, "Pipe", _pipeLabel);
         AddMetricRow(metrics, 1, "CPU", _cpuLabel);
         AddMetricRow(metrics, 2, "GPU", _gpuLabel);
-        AddMetricRow(metrics, 3, "Memory", _memoryLabel);
-        AddMetricRow(metrics, 4, "Storage", _storageLabel);
-        AddMetricRow(metrics, 5, "Network", _networkLabel);
-        AddMetricRow(metrics, 6, "", _updatedLabel, spanColumns: true);
-        AddMetricRow(metrics, 7, "", _errorLabel, spanColumns: true);
+        AddMetricRow(metrics, 3, "Motherboard", _motherboardLabel);
+        AddMetricRow(metrics, 4, "Fan", _fanLabel);
+        AddMetricRow(metrics, 5, "Memory", _memoryLabel);
+        AddMetricRow(metrics, 6, "Storage", _storageLabel);
+        AddMetricRow(metrics, 7, "Network", _networkLabel);
+        AddMetricRow(metrics, 8, "", _updatedLabel, spanColumns: true);
+        AddMetricRow(metrics, 9, "", _errorLabel, spanColumns: true);
 
         group.Controls.Add(metrics);
         return group;
@@ -167,7 +171,7 @@ internal sealed class MainForm : Form
         }
 
         valueControl.Anchor = AnchorStyles.Left;
-        valueControl.MaximumSize = new Size(ContentWidth - 84, 0);
+        valueControl.MaximumSize = new Size(ContentWidth - 100, 0);
         valueControl.Padding = new Padding(0, 7, 0, 0);
         panel.Controls.Add(valueControl, spanColumns ? 0 : 1, row);
         if (spanColumns)
@@ -240,6 +244,8 @@ internal sealed class MainForm : Form
             _pipeLabel.Text = "Waiting for first reading…";
             _cpuLabel.Text = "—";
             _gpuLabel.Text = "—";
+            _motherboardLabel.Text = "—";
+            _fanLabel.Text = "—";
             _memoryLabel.Text = "—";
             _storageLabel.Text = "—";
             _networkLabel.Text = "—";
@@ -248,14 +254,23 @@ internal sealed class MainForm : Form
             return;
         }
 
-        _pipeLabel.Text = status.PipeConnected
-            ? "Connected to configurator"
-            : "Not connected — start EezBotFun Configurator";
+        if (!status.PipeConnected && string.IsNullOrWhiteSpace(status.LastError) && status.CpuLoadPercent == 0 && status.MemoryUsedGb == 0)
+        {
+            _pipeLabel.Text = status.LastSummary ?? "Initializing…";
+        }
+        else
+        {
+            _pipeLabel.Text = status.PipeConnected
+                ? "Connected to configurator"
+                : "Not connected — start EezBotFun Configurator";
+        }
 
         _cpuLabel.Text = FormatCpu(status);
         _gpuLabel.Text = FormatGpu(status);
-        _memoryLabel.Text = $"{status.MemoryPercent:F1}% used";
-        _storageLabel.Text = $"{status.StoragePercent:F1}% used";
+        _motherboardLabel.Text = FormatMotherboard(status);
+        _fanLabel.Text = FormatFan(status);
+        _memoryLabel.Text = FormatMemory(status);
+        _storageLabel.Text = FormatStorage(status);
         _networkLabel.Text = FormatNetwork(status);
 
         _updatedLabel.Text = status.UpdatedAt == default
@@ -297,6 +312,45 @@ internal sealed class MainForm : Form
         return string.IsNullOrEmpty(mem)
             ? $"{temp}  ·  {load}"
             : $"{temp}  ·  {load}  ·  {mem}";
+    }
+
+    private static string FormatMotherboard(RuntimeStatus status)
+    {
+        if (status.MotherboardTempC is > 0)
+        {
+            return $"{status.MotherboardTempC:F1}°C";
+        }
+
+        return "—°C";
+    }
+
+    private static string FormatFan(RuntimeStatus status)
+    {
+        return status.BoardFanRpm > 0
+            ? $"{status.BoardFanRpm:F0} RPM"
+            : "— RPM";
+    }
+
+    private static string FormatMemory(RuntimeStatus status)
+    {
+        return status.MemoryUsedGb > 0
+            ? $"{status.MemoryUsedGb:F1} GB used"
+            : "— GB";
+    }
+
+    private static string FormatStorage(RuntimeStatus status)
+    {
+        if (status.StorageTempC > 0)
+        {
+            return $"{status.StorageTempC:F1}°C";
+        }
+
+        if (status.StoragePercent > 0)
+        {
+            return $"{status.StoragePercent:F1}% used";
+        }
+
+        return "—";
     }
 
     private static string FormatNetwork(RuntimeStatus status)

@@ -11,50 +11,83 @@ public sealed class MonitorEngine : IDisposable
     private readonly PcStatusBuilder _builder = new();
     private EzbfPipeClient? _pipe;
     private string _pipeName = MonitorSettings.DefaultPipeName;
+    private string _activePipeName = string.Empty;
     private int _cmd = MonitorSettings.DefaultCmd;
 
     public bool IsPipeConnected => _pipe?.IsConnected == true;
 
-    public MonitorTickResult RunOnce(MonitorSettings settings)
+    public MonitorTickResult RunOnce(MonitorSettings settings, Action<RuntimeStatus>? onSnapshot = null)
     {
         _pipeName = settings.PipeName;
         _cmd = settings.Cmd;
 
-        EnsurePipeConnected();
-
         HardwareSnapshot snapshot = _collector.Capture();
+        onSnapshot?.Invoke(CreateStatus(snapshot, sent: false, error: null, lastSentUnixTime: 0));
+
         string json = _builder.BuildJson(snapshot, _cmd);
 
         bool sent = false;
         string? error = null;
 
-        if (_pipe is { IsConnected: true })
+        try
         {
-            try
+            sent = TrySendJson(json);
+            if (!sent)
             {
-                sent = _pipe.SendJson(json);
-                if (!sent)
-                {
-                    error = "Failed to write EZBF frame to named pipe.";
-                }
-            }
-            catch (Exception ex)
-            {
-                error = ex.Message;
-                DisconnectPipe();
+                error = _pipe?.LastConnectError
+                    ?? "Named pipe is not connected. Is EezBotFun Configurator running with Named Pipe Service enabled?";
             }
         }
-        else
+        catch (Exception ex)
         {
-            error = "Named pipe is not connected. Is EezBotFun Configurator running?";
+            error = ex.Message;
+            DisconnectPipe();
         }
 
-        RuntimeStatus status = new()
+        RuntimeStatus status = CreateStatus(
+            snapshot,
+            sent,
+            error,
+            sent ? DateTimeOffset.UtcNow.ToUnixTimeSeconds() : 0);
+
+        return new MonitorTickResult(sent, snapshot, status, error);
+    }
+
+    private bool TrySendJson(string json)
+    {
+        EnsurePipeClient();
+        return _pipe!.SendJson(json);
+    }
+
+    private void EnsurePipeClient()
+    {
+        if (_pipe != null && string.Equals(_activePipeName, _pipeName, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        _pipe?.Dispose();
+        _pipe = new EzbfPipeClient(_pipeName);
+        _activePipeName = _pipeName;
+    }
+
+    private void DisconnectPipe()
+    {
+        _pipe?.Disconnect();
+    }
+
+    private RuntimeStatus CreateStatus(
+        HardwareSnapshot snapshot,
+        bool sent,
+        string? error,
+        long lastSentUnixTime)
+    {
+        return new RuntimeStatus
         {
             UpdatedAt = DateTimeOffset.Now,
-            PipeConnected = IsPipeConnected && sent,
+            PipeConnected = sent,
             LastError = error,
-            LastSentUnixTime = sent ? DateTimeOffset.UtcNow.ToUnixTimeSeconds() : 0,
+            LastSentUnixTime = lastSentUnixTime,
             LastSummary = FormatSummary(snapshot),
             CpuTempC = snapshot.CpuPackageTempC ?? 0,
             CpuLoadPercent = snapshot.CpuLoadPercent,
@@ -63,34 +96,18 @@ public sealed class MonitorEngine : IDisposable
             GpuLoadPercent = snapshot.GpuLoadPercent,
             GpuMemUsedMb = snapshot.GpuMemUsedMb,
             GpuMemTotalMb = snapshot.GpuMemTotalMb,
+            MemoryUsedGb = snapshot.MemoryUsedGb,
             MemoryPercent = snapshot.MemoryPercent,
             StoragePercent = snapshot.StoragePercent,
+            StorageTempC = snapshot.StorageTempC ?? 0,
+            MotherboardTempC = snapshot.MotherboardTempC,
+            BoardFanRpm = snapshot.BoardFanRpm,
             NetworkUpKbPerSec = snapshot.NetworkUpKbPerSec,
             NetworkDownKbPerSec = snapshot.NetworkDownKbPerSec,
             NetworkLinkUp = snapshot.NetworkLinkUp,
             NetworkLinksUp = snapshot.NetworkLinksUp,
             NetworkLinksTotal = snapshot.NetworkLinksTotal,
         };
-
-        return new MonitorTickResult(sent, snapshot, status, error);
-    }
-
-    private void EnsurePipeConnected()
-    {
-        if (_pipe is { IsConnected: true })
-        {
-            return;
-        }
-
-        DisconnectPipe();
-        _pipe = new EzbfPipeClient(_pipeName);
-        _ = _pipe.Connect();
-    }
-
-    private void DisconnectPipe()
-    {
-        _pipe?.Dispose();
-        _pipe = null;
     }
 
     private static string FormatSummary(HardwareSnapshot s)
@@ -103,7 +120,8 @@ public sealed class MonitorEngine : IDisposable
 
     public void Dispose()
     {
-        DisconnectPipe();
+        _pipe?.Dispose();
+        _pipe = null;
         _collector.Dispose();
     }
 }

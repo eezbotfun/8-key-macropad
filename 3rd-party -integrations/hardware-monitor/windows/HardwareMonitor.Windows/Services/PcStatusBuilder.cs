@@ -32,6 +32,7 @@ internal sealed class PcStatusBuilder
             _cpuTempMax = cpuTemp;
         }
 
+        double boardTemp = Round1(snapshot.MotherboardTempC ?? cpuTemp);
         double core1Temp = Round1(snapshot.CpuCore1TempC ?? cpuTemp);
         int tjMax = snapshot.CpuTjMaxC > 0 ? snapshot.CpuTjMaxC : 100;
         double core1Distance = Round1(snapshot.CpuCore1DistanceToTjMaxC);
@@ -53,7 +54,7 @@ internal sealed class PcStatusBuilder
             Cmd = cmd,
             Board = new BoardSection
             {
-                Temp = cpuTemp,
+                Temp = boardTemp,
                 Rpm = Round4(snapshot.BoardFanRpm),
                 Tick = _tick,
             },
@@ -100,9 +101,10 @@ internal sealed class PcStatusBuilder
         };
     }
 
-    private static double Round1(double value) => Math.Round(value, 1, MidpointRounding.AwayFromZero);
-    private static double Round3(double value) => Math.Round(value, 3, MidpointRounding.AwayFromZero);
-    private static double Round4(double value) => Math.Round(value, 4, MidpointRounding.AwayFromZero);
-    private static double Round5(double value) => Math.Round(value, 5, MidpointRounding.AwayFromZero);
-    private static double Round6(double value) => Math.Round(value, 6, MidpointRounding.AwayFromZero);
+    private static double Round1(double value) => Math.Round(Sanitize(value), 1, MidpointRounding.AwayFromZero);
+    private static double Round3(double value) => Math.Round(Sanitize(value), 3, MidpointRounding.AwayFromZero);
+    private static double Round4(double value) => Math.Round(Sanitize(value), 4, MidpointRounding.AwayFromZero);
+    private static double Round5(double value) => Math.Round(Sanitize(value), 5, MidpointRounding.AwayFromZero);
+    private static double Round6(double value) => Math.Round(Sanitize(value), 6, MidpointRounding.AwayFromZero);
+    private static double Sanitize(double value) => double.IsFinite(value) ? value : 0;
 }

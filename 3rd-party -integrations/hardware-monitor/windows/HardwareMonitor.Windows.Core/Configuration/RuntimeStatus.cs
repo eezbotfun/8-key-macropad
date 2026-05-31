@@ -17,8 +17,13 @@ public sealed class RuntimeStatus
     public double GpuMemUsedMb { get; set; }
     public double GpuMemTotalMb { get; set; }
 
-    public double MemoryPercent { get; set; }
+    public double MemoryUsedGb { get; set; }
     public double StoragePercent { get; set; }
+    public double? MotherboardTempC { get; set; }
+    public double BoardFanRpm { get; set; }
+    public double StorageTempC { get; set; }
+
+    public double MemoryPercent { get; set; }
 
     public double NetworkUpKbPerSec { get; set; }
     public double NetworkDownKbPerSec { get; set; }

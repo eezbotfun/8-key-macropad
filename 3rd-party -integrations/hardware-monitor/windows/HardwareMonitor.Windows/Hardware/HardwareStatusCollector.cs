@@ -94,6 +94,7 @@ internal sealed class HardwareStatusCollector : IDisposable
             NetworkLinksTotal = network.LinksTotal,
 
             BoardFanRpm = GetBoardFanRpm(gpuFan),
+            MotherboardTempC = GetMotherboardTemp(),
         };
     }
 
@@ -236,6 +237,16 @@ internal sealed class HardwareStatusCollector : IDisposable
     private float? GetStorageTemp()
     {
         return _sensors.FirstValue(SensorType.Temperature, _ => true, HardwareType.Storage);
+    }
+
+    private float? GetMotherboardTemp()
+    {
+        float max = _sensors.MaxValue(
+            SensorType.Temperature,
+            _ => true,
+            HardwareType.Motherboard);
+
+        return max > 0 ? max : null;
     }
 
     private float GetBoardFanRpm(float gpuFanFallback)
