@@ -1,6 +1,6 @@
 # EezBotFun Hardware Monitor — Windows plugin user guide
 
-One app, no Windows service, no install steps. Unzip, run **`HardwareMonitor.exe`**, keep it open while you use the macro pad.
+One app, no Windows service, no install steps. Unzip, run `**HardwareMonitor.exe**`, keep it open while you use the macro pad.
 
 The app reads CPU, GPU, memory, disk, and network data from your PC and sends it to **EezBotFun Configurator** over a fixed named pipe (`ezb-macropad`). The configurator shows the data on your macro pad LCD.
 
@@ -8,11 +8,13 @@ The app reads CPU, GPU, memory, disk, and network data from your PC and sends it
 
 ## What you need
 
-| Requirement | Notes |
-|-------------|--------|
-| **Windows 10 or 11 (64-bit)** | Self-contained build — no .NET install required. |
-| **EezBotFun Configurator** | Running on the same PC, with **Enable Named Pipe Service** turned on. |
-| **Macro pad connected** | Set up in the configurator as usual. |
+
+| Requirement                   | Notes                                                                 |
+| ----------------------------- | --------------------------------------------------------------------- |
+| **Windows 10 or 11 (64-bit)** | Self-contained build — no .NET install required.                      |
+| **EezBotFun Configurator**    | Running on the same PC, with **Enable Named Pipe Service** turned on. |
+| **Macro pad connected**       | Set up in the configurator as usual.                                  |
+
 
 ---
 
@@ -23,7 +25,7 @@ The app reads CPU, GPU, memory, disk, and network data from your PC and sends it
 3. **Double-click `HardwareMonitor.exe`**.
 4. Check your **macro pad LCD** — hardware status should update within a few seconds.
 
-That is all. While **`HardwareMonitor.exe`** is running, data is sent to the configurator. You can **minimize** the window. **Close** the app to stop monitoring.
+That is all. While `**HardwareMonitor.exe`** is running, data is sent to the configurator. You can **minimize** the window. **Close** the app to stop monitoring.
 
 Optional: change **Interval (seconds)** in the app and click **Save settings** (default `1` second is fine).
 
@@ -31,11 +33,13 @@ Optional: change **Interval (seconds)** in the app and click **Save settings** (
 
 ## Files in the zip
 
-| File | Purpose |
-|------|---------|
-| **`HardwareMonitor.exe`** | **Run this.** Single monitoring app. |
+
+| File                                  | Purpose                                                  |
+| ------------------------------------- | -------------------------------------------------------- |
+| `**HardwareMonitor.exe`**             | **Run this.** Single monitoring app.                     |
 | Other `.dll` files, `runtimes\`, etc. | Bundled runtime and libraries — keep next to the `.exe`. |
-| `WINDOWS_PLUGIN_HELP.md` | This guide. |
+| `WINDOWS_PLUGIN_HELP.md`              | This guide.                                              |
+
 
 There is **no** separate service program and **no** administrator install step for normal use.
 
@@ -43,9 +47,11 @@ There is **no** separate service program and **no** administrator install step f
 
 ## Settings
 
-| Setting | Default | Description |
-|---------|---------|-------------|
-| **Interval (seconds)** | `1` | How often status is sent (1–300). |
+
+| Setting                | Default | Description                       |
+| ---------------------- | ------- | --------------------------------- |
+| **Interval (seconds)** | `1`     | How often status is sent (1–300). |
+
 
 Settings are saved to:
 
@@ -59,8 +65,8 @@ Settings are saved to:
 
 - EezBotFun Configurator is not running.
 - **Enable Named Pipe Service** is off in the configurator.
-- **`HardwareMonitor.exe`** is not running (or was closed).
-- Restart configurator, then run **`HardwareMonitor.exe`** again.
+- `**HardwareMonitor.exe`** is not running (or was closed).
+- Restart configurator, then run `**HardwareMonitor.exe**` again.
 
 ### CPU/GPU temperature shows 0
 
@@ -70,7 +76,7 @@ Settings are saved to:
 ### App fails to start after unzip
 
 - Extract the **full** zip again — do not run from inside the zip viewer.
-- Keep every file in the same folder as **`HardwareMonitor.exe`**.
+- Keep every file in the same folder as `**HardwareMonitor.exe`**.
 
 ---
 
