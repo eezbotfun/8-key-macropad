@@ -28,6 +28,17 @@ public partial class MainWindow : Window
         LongModeCombo.ItemsSource = new[] { "WRAP", "SCROLL", "SCROLL_CIRCULAR", "CLIP", "DOT" };
         LongModeCombo.SelectedIndex = 0;
 
+        CmdCombo.ItemsSource = new[] { "(omit — legacy activate)", "start", "stop", "update" };
+        CmdCombo.SelectedIndex = 0;
+
+        GridTextOpCombo.ItemsSource = new[] { "replace", "append" };
+        GridTextOpCombo.SelectedIndex = 0;
+        SymbolComboGrid.ItemsSource = CusGridExamples.SymbolTokens;
+        SymbolComboGrid.SelectedIndex = 0;
+        SymbolComboAbs.ItemsSource = CusGridExamples.SymbolTokens;
+        SymbolComboAbs.SelectedIndex = 0;
+        GridSetTextBox.Text = "{wifi} event";
+
         BorderModeCombo.ItemsSource = new[] { "omit (no border key)", "true (1 px)", "number (px)" };
         BorderModeCombo.SelectedIndex = 0;
         BorderModeCombo.SelectionChanged += BorderModeCombo_OnSelectionChanged;
@@ -38,14 +49,35 @@ public partial class MainWindow : Window
         CloseBtn.Click += CloseBtn_OnClick;
         RefreshPreviewBtn.Click += (_, _) => RefreshFormJsonPreview();
         SendBtn.Click += SendBtn_OnClick;
+        SendStartBtn.Click += SendStartBtn_OnClick;
+        SendStopBtn.Click += SendStopBtn_OnClick;
         SendRawBtn.Click += SendRawBtn_OnClick;
+        SendGridSetupBtn.Click += SendGridSetupBtn_OnClick;
+        SendGridSetBtn.Click += SendGridSetBtn_OnClick;
+        InsertSymbolGridBtn.Click += (_, _) =>
+            InsertSymbolInto(GridSetTextBox, SymbolComboGrid.SelectedItem as string);
+        InsertSymbolAbsBtn.Click += (_, _) =>
+            InsertSymbolInto(MessageTextBox, SymbolComboAbs.SelectedItem as string);
 
-        Opened += (_, _) => RefreshFormJsonPreview();
+        ShowJsonPreviewCheck.IsCheckedChanged += (_, _) =>
+        {
+            var show = ShowJsonPreviewCheck.IsChecked == true;
+            JsonPreviewBox.IsVisible = show;
+            if (show)
+                RefreshFormJsonPreview();
+        };
+
+        Opened += (_, _) =>
+        {
+            if (ShowJsonPreviewCheck.IsChecked == true)
+                RefreshFormJsonPreview();
+        };
         WireFormJsonPreviewRefresh();
 
         Closing += (_, _) => ClosePortSilently();
 
         RefreshPorts();
+        UpdateConnectionUi();
     }
 
     private void WireFormJsonPreviewRefresh()
@@ -55,14 +87,26 @@ public partial class MainWindow : Window
         foreach (var tb in new[]
                  {
                      XBox, YBox, WBox, HBox, MessageTextBox, FgBox, BgBox, BorderWidthBox, BorderColorBox,
-                     BorderRadiusBox,
+                     BorderRadiusBox, ImageBox, Led0Box, Led1Box, Led2Box, Led3Box, Led4Box, Led5Box, Led6Box,
+                     Led7Box,
                  })
             tb.LostFocus += lost;
 
         AlignCombo.SelectionChanged += (_, _) => RefreshFormJsonPreview();
         LongModeCombo.SelectionChanged += (_, _) => RefreshFormJsonPreview();
+        CmdCombo.SelectionChanged += (_, _) => RefreshFormJsonPreview();
         ClearCanvasCheck.IsCheckedChanged += (_, _) => RefreshFormJsonPreview();
         ActivateCheck.IsCheckedChanged += (_, _) => RefreshFormJsonPreview();
+        FullscreenCheck.IsCheckedChanged += (_, _) =>
+        {
+            if (FullscreenCheck.IsChecked == true && HBox.Text == "200")
+                HBox.Text = "320";
+            else if (FullscreenCheck.IsChecked != true && HBox.Text == "320")
+                HBox.Text = "200";
+            RefreshFormJsonPreview();
+        };
+        LedsIncludeCheck.IsCheckedChanged += (_, _) => RefreshFormJsonPreview();
+        LedsOnCheck.IsCheckedChanged += (_, _) => RefreshFormJsonPreview();
     }
 
     private void BorderModeCombo_OnSelectionChanged(object? sender, SelectionChangedEventArgs e)
@@ -73,14 +117,90 @@ public partial class MainWindow : Window
 
     private void RefreshPorts()
     {
-        var sel = PortCombo.SelectedItem as string;
-        PortCombo.ItemsSource = SerialPort.GetPortNames().OrderBy(s => s, StringComparer.Ordinal).ToArray();
-        if (sel is not null && PortCombo.ItemsSource is IEnumerable<string> ports && ports.Contains(sel))
-            PortCombo.SelectedItem = sel;
-        else if (PortCombo.ItemCount > 0)
-            PortCombo.SelectedIndex = 0;
+        var previous = PortCombo.SelectedItem as string;
+        var ports = SerialPort.GetPortNames()
+            .OrderBy(s => s, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        PortCombo.ItemsSource = ports;
 
-        Log($"Ports refreshed ({PortCombo.Items.Count} found).");
+        if (ports.Length == 0)
+        {
+            PortCombo.SelectedItem = null;
+            Log("Ports refreshed (0 found).");
+            return;
+        }
+
+        // Keep prior selection when still present; otherwise auto-pick a sensible default.
+        if (!string.IsNullOrEmpty(previous) && ports.Contains(previous, StringComparer.OrdinalIgnoreCase))
+            PortCombo.SelectedItem = ports.First(p => p.Equals(previous, StringComparison.OrdinalIgnoreCase));
+        else
+            PortCombo.SelectedItem = PickDefaultPort(ports);
+
+        Log($"Ports refreshed ({ports.Length} found); selected {PortCombo.SelectedItem}.");
+    }
+
+    /// <summary>
+    /// Single port → that port. Multiple → prefer non-legacy COMs (skip COM1/COM2 when others exist),
+    /// then the highest COM number (typical for a freshly plugged USB CDC device).
+    /// </summary>
+    private static string PickDefaultPort(string[] ports)
+    {
+        if (ports.Length == 1)
+            return ports[0];
+
+        static int? ComNumber(string name)
+        {
+            if (!name.StartsWith("COM", StringComparison.OrdinalIgnoreCase))
+                return null;
+            return int.TryParse(name.AsSpan(3), NumberStyles.Integer, CultureInfo.InvariantCulture, out var n)
+                ? n
+                : null;
+        }
+
+        var preferred = ports
+            .Where(p =>
+            {
+                var n = ComNumber(p);
+                return n is null or > 2;
+            })
+            .ToArray();
+        var pool = preferred.Length > 0 ? preferred : ports;
+
+        return pool
+            .OrderByDescending(p => ComNumber(p) ?? -1)
+            .ThenByDescending(p => p, StringComparer.OrdinalIgnoreCase)
+            .First();
+    }
+
+    private bool IsPortOpen => _port is { IsOpen: true };
+
+    private void UpdateConnectionUi()
+    {
+        var connected = IsPortOpen;
+
+        OpenBtn.IsEnabled = !connected;
+        CloseBtn.IsEnabled = connected;
+        PortCombo.IsEnabled = !connected;
+        BaudBox.IsEnabled = !connected;
+        RefreshPortsBtn.IsEnabled = !connected;
+
+        SendStopBtn.IsEnabled = connected;
+        SendGridSetupBtn.IsEnabled = connected;
+        SendGridSetBtn.IsEnabled = connected;
+        SendBtn.IsEnabled = connected;
+        SendStartBtn.IsEnabled = connected;
+        SendRawBtn.IsEnabled = connected;
+
+        if (connected)
+        {
+            ConnectionStatusText.Text = $"Connected ({_port!.PortName})";
+            ConnectionStatusText.Foreground = Avalonia.Media.Brushes.ForestGreen;
+        }
+        else
+        {
+            ConnectionStatusText.Text = "Not connected";
+            ConnectionStatusText.Foreground = Avalonia.Media.Brushes.Firebrick;
+        }
     }
 
     private void OpenBtn_OnClick(object? sender, RoutedEventArgs e)
@@ -117,8 +237,7 @@ public partial class MainWindow : Window
                 WriteTimeout = 2000,
             };
             _port.Open();
-            OpenBtn.IsEnabled = false;
-            CloseBtn.IsEnabled = true;
+            UpdateConnectionUi();
             Log($"Opened {portName} @ {baud}.");
         }
         catch (Exception ex)
@@ -150,32 +269,99 @@ public partial class MainWindow : Window
 
         _port.Dispose();
         _port = null;
-        OpenBtn.IsEnabled = true;
-        CloseBtn.IsEnabled = false;
+        UpdateConnectionUi();
     }
 
     private void RefreshFormJsonPreview()
     {
+        if (ShowJsonPreviewCheck.IsChecked != true)
+            return;
+
         if (!TryReadPayload(out var payload, out var readErr))
         {
-            JsonPreviewBox.Text = "// " + readErr;
+            SetJsonPreviewText("// " + readErr);
             return;
         }
 
         if (!TryMergeBorderIntoPayload(payload, out var root, out var mergeErr) || root is null)
         {
-            JsonPreviewBox.Text = "// " + mergeErr;
+            SetJsonPreviewText("// " + mergeErr);
             return;
         }
 
-        JsonPreviewBox.Text = JsonSerializer.Serialize(root, s_previewJsonOptions);
+        SetJsonPreviewText(JsonSerializer.Serialize(root, s_previewJsonOptions));
     }
 
-    private void SendBtn_OnClick(object? sender, RoutedEventArgs e)
+    private void SetJsonPreviewText(string text)
+    {
+        if (ShowJsonPreviewCheck.IsChecked != true)
+            return;
+        JsonPreviewBox.Text = text;
+    }
+
+    private void SendGridSetupBtn_OnClick(object? sender, RoutedEventArgs e)
+    {
+        var root = CusGridExamples.BuildDefaultSetup(GridFullscreenCheck.IsChecked == true);
+        SetJsonPreviewText(JsonSerializer.Serialize(root, s_previewJsonOptions));
+        try
+        {
+            var frame = CusFrameBuilder.BuildFrame(root, out var warn);
+            if (warn is not null)
+                Log(warn);
+            TryWriteFrame(frame);
+        }
+        catch (Exception ex)
+        {
+            Log($"Grid setup failed: {ex.Message}");
+        }
+    }
+
+    private void SendGridSetBtn_OnClick(object? sender, RoutedEventArgs e)
+    {
+        if (!int.TryParse(GridSetIdBox.Text?.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var id)
+            || id < 0)
+        {
+            Log("Invalid grid set id.");
+            return;
+        }
+
+        var textOp = GridTextOpCombo.SelectedItem as string ?? "replace";
+        var fg = GridSetFgBox.Text?.Trim();
+        var root = CusGridExamples.BuildSetUpdate(id, GridSetTextBox.Text ?? "", textOp, fg);
+        SetJsonPreviewText(JsonSerializer.Serialize(root, s_previewJsonOptions));
+        try
+        {
+            var frame = CusFrameBuilder.BuildFrame(root, out var warn);
+            if (warn is not null)
+                Log(warn);
+            TryWriteFrame(frame);
+        }
+        catch (Exception ex)
+        {
+            Log($"Grid set failed: {ex.Message}");
+        }
+    }
+
+    private void InsertSymbolInto(TextBox box, string? name)
+    {
+        if (string.IsNullOrEmpty(name))
+            return;
+        var token = "{" + name + "}";
+        var t = box.Text ?? "";
+        box.Text = string.IsNullOrEmpty(t) ? token + " " : t + token;
+    }
+
+    private void SendBtn_OnClick(object? sender, RoutedEventArgs e) => SendFormFrame(null);
+
+    private void SendStartBtn_OnClick(object? sender, RoutedEventArgs e) => SendFormFrame("start");
+
+    private void SendStopBtn_OnClick(object? sender, RoutedEventArgs e) => SendFormFrame("stop");
+
+    private void SendFormFrame(string? cmdOverride)
     {
         RefreshFormJsonPreview();
 
-        if (!TryReadPayload(out var payload, out var readErr))
+        if (!TryReadPayload(out var payload, out var readErr, cmdOverride))
         {
             Log(readErr);
             return;
@@ -271,12 +457,12 @@ public partial class MainWindow : Window
         try
         {
             var node = JsonNode.Parse(trimmed);
-            JsonPreviewBox.Text = JsonSerializer.Serialize(node, s_previewJsonOptions);
+            SetJsonPreviewText(JsonSerializer.Serialize(node, s_previewJsonOptions));
         }
         catch (JsonException)
         {
-            JsonPreviewBox.Text = "// Raw text is not valid JSON; sending bytes as-is (see log if device rejects).\n" +
-                                  trimmed;
+            SetJsonPreviewText("// Raw text is not valid JSON; sending bytes as-is (see log if device rejects).\n" +
+                              trimmed);
         }
 
         byte[] frame;
@@ -295,7 +481,7 @@ public partial class MainWindow : Window
         TryWriteFrame(frame);
     }
 
-    private bool TryReadPayload(out CusPayload payload, out string error)
+    private bool TryReadPayload(out CusPayload payload, out string error, string? cmdOverride = null)
     {
         payload = new CusPayload();
         error = "";
@@ -320,6 +506,38 @@ public partial class MainWindow : Window
         payload.long_mode = LongModeCombo.SelectedItem as string ?? "WRAP";
         payload.activate = ActivateCheck.IsChecked == true;
         payload.clear_canvas = ClearCanvasCheck.IsChecked == true;
+        payload.fullscreen = FullscreenCheck.IsChecked == true;
+
+        var imageName = ImageBox.Text?.Trim();
+        if (!string.IsNullOrEmpty(imageName))
+            payload.image = imageName;
+
+        if (LedsIncludeCheck.IsChecked == true)
+        {
+            var keys = new string?[8];
+            var boxes = new[] { Led0Box, Led1Box, Led2Box, Led3Box, Led4Box, Led5Box, Led6Box, Led7Box };
+            for (var i = 0; i < 8; i++)
+            {
+                var t = boxes[i].Text?.Trim();
+                keys[i] = string.IsNullOrEmpty(t) ? null : t;
+            }
+
+            payload.leds = new CusLedsPayload
+            {
+                on = LedsOnCheck.IsChecked == true,
+                keys = keys,
+            };
+        }
+
+        if (cmdOverride is not null)
+        {
+            payload.cmd = cmdOverride;
+        }
+        else if (CmdCombo.SelectedIndex > 0)
+        {
+            payload.cmd = CmdCombo.SelectedItem as string;
+        }
+
         return true;
     }
 
