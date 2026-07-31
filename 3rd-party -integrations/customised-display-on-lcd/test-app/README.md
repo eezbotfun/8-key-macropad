@@ -4,13 +4,12 @@ To make debugging easier, I wrote a test program for sending protocol text to th
 
 ## Download (Windows)
 
-Pre-built Windows x64 build (no Visual Studio needed):
+Pre-built **self-contained** Windows x64 build — no .NET install required:
 
 - [CusProtocolTester-win-x64-net8.0.zip](prebuild-bin-file/CusProtocolTester-win-x64-net8.0.zip)
 
-1. Install the [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0) if you do not already have it.
-2. Download the zip, extract it, and run `CusProtocolTester.exe`.
-3. Select the device COM port, click **Open**, then use **Grid mode** / **Absolute mode** / **Raw JSON**.
+1. Download the zip, extract it, and run `CusProtocolTester.exe`.
+2. Select the device COM port, click **Open**, then use **Grid mode** / **Absolute mode** / **Raw JSON**.
 
 Protocol details: [host_usb_cdc_customised.md](../protocol/host_usb_cdc_customised.md)
 
