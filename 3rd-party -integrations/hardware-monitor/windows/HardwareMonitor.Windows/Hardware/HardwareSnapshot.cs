@@ -16,6 +16,7 @@ public sealed class HardwareSnapshot
     public float GpuMemUsedMb { get; init; }
     public float GpuMemTotalMb { get; init; }
     public float GpuFreqMhz { get; init; }
+    public string? GpuDeviceName { get; init; }
 
     public float? StorageTempC { get; init; }
     public float StorageReadMb { get; init; }

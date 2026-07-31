@@ -33,10 +33,10 @@ internal sealed class MainForm : Form
         _monitor = monitor;
         _trayIcon = CreateTrayIcon();
 
-        Text = "EezBotFun Hardware Monitor";
+        Text = $"{MonitorPaths.AppDisplayName} v{AppVersion.Display}";
         Icon = AppIcons.Default;
-        ClientSize = new Size(ContentWidth + FormPadding, 804);
-        MinimumSize = new Size(ContentWidth + FormPadding, 804);
+        ClientSize = new Size(ContentWidth + FormPadding, 832);
+        MinimumSize = new Size(ContentWidth + FormPadding, 832);
         FormBorderStyle = FormBorderStyle.FixedDialog;
         MaximizeBox = false;
         StartPosition = FormStartPosition.CenterScreen;
@@ -83,6 +83,13 @@ internal sealed class MainForm : Form
                    "Start the configurator first and enable Named Pipe Service.",
         });
 
+        AddRow(layout, new Label
+        {
+            AutoSize = true,
+            ForeColor = SystemColors.GrayText,
+            Text = $"Version {AppVersion.Display}",
+        });
+
         AddRow(layout, SectionHeader("Settings"));
 
         FlowLayoutPanel settingsRow = new() { AutoSize = true, WrapContents = false, Width = ContentWidth };
@@ -108,7 +115,7 @@ internal sealed class MainForm : Form
             Text = "Keep this app open while you want live data on the macro pad. " +
                    "Minimize sends the app to the system tray. Closing the window asks whether to stay in the tray or exit. " +
                    $"Named pipe: {MonitorSettings.DefaultPipeName}. " +
-                   "If CPU/GPU temperatures stay at zero, try Run as administrator.",
+                   "This app must run as administrator for GPU sensors (same as Libre Hardware Monitor). Rebuild with publish.ps1 if GPU stays at —.",
         });
 
         root.Controls.Add(layout);
@@ -303,15 +310,23 @@ internal sealed class MainForm : Form
 
     private static string FormatGpu(RuntimeStatus status)
     {
+        if (status.GpuTempC <= 0 && status.GpuMemTotalMb <= 0)
+        {
+            return "—°C  ·  no GPU from LibreHardwareMonitor (run as administrator; rebuild win-x64)";
+        }
+
         string temp = status.GpuTempC > 0 ? $"{status.GpuTempC:F1}°C" : "—°C";
         string load = $"{status.GpuLoadPercent:F1}% load";
         string mem = status.GpuMemTotalMb > 0
             ? $"{status.GpuMemUsedMb:F0} / {status.GpuMemTotalMb:F0} MB VRAM"
             : string.Empty;
-
-        return string.IsNullOrEmpty(mem)
+        string parts = string.IsNullOrEmpty(mem)
             ? $"{temp}  ·  {load}"
             : $"{temp}  ·  {load}  ·  {mem}";
+
+        return string.IsNullOrWhiteSpace(status.GpuDeviceName)
+            ? parts
+            : $"{parts}  ·  {status.GpuDeviceName}";
     }
 
     private static string FormatMotherboard(RuntimeStatus status)
@@ -368,7 +383,7 @@ internal sealed class MainForm : Form
         NotifyIcon trayIcon = new()
         {
             Icon = AppIcons.Default,
-            Text = "EezBotFun Hardware Monitor",
+            Text = $"{MonitorPaths.AppDisplayName} v{AppVersion.Display}",
             Visible = false,
         };
 
@@ -417,6 +432,8 @@ internal sealed class MainForm : Form
                 break;
         }
     }
+
+    public void BringToForeground() => RestoreFromTray();
 
     private void MinimizeToTray()
     {

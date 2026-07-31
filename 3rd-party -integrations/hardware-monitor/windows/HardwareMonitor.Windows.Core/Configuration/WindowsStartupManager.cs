@@ -5,7 +5,7 @@ namespace HardwareMonitor.Windows.Configuration;
 public static class WindowsStartupManager
 {
     private const string RunKeyPath = @"Software\Microsoft\Windows\CurrentVersion\Run";
-    private const string ValueName = "EezBotFun Hardware Monitor";
+    private const string ValueName = MonitorPaths.AppDisplayName;
     public const string MinimizedArgument = "--minimized";
 
     public static bool IsEnabled()

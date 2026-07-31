@@ -303,7 +303,7 @@ public static class WindowsServiceManager
             || message.Contains("already exists", StringComparison.OrdinalIgnoreCase))
         {
             throw new InvalidOperationException(
-                "The EezBotFun Hardware Monitor service is already registered. " +
+                $"The {MonitorPaths.AppDisplayName} service is already registered. " +
                 "Click Start if it is stopped, or Uninstall first to register a fresh copy.");
         }
 

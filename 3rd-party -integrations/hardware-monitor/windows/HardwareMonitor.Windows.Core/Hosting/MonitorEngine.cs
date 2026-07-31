@@ -96,11 +96,12 @@ public sealed class MonitorEngine : IDisposable
             GpuLoadPercent = snapshot.GpuLoadPercent,
             GpuMemUsedMb = snapshot.GpuMemUsedMb,
             GpuMemTotalMb = snapshot.GpuMemTotalMb,
+            GpuDeviceName = snapshot.GpuDeviceName,
             MemoryUsedGb = snapshot.MemoryUsedGb,
             MemoryPercent = snapshot.MemoryPercent,
             StoragePercent = snapshot.StoragePercent,
             StorageTempC = snapshot.StorageTempC ?? 0,
-            MotherboardTempC = snapshot.MotherboardTempC,
+            MotherboardTempC = snapshot.MotherboardTempC ?? snapshot.CpuPackageTempC,
             BoardFanRpm = snapshot.BoardFanRpm,
             NetworkUpKbPerSec = snapshot.NetworkUpKbPerSec,
             NetworkDownKbPerSec = snapshot.NetworkDownKbPerSec,
@@ -112,8 +113,9 @@ public sealed class MonitorEngine : IDisposable
 
     private static string FormatSummary(HardwareSnapshot s)
     {
+        string gpuTemp = s.GpuTempC is > 0 ? $"{s.GpuTempC:F1}°C" : "—°C";
         return $"CPU {s.CpuPackageTempC:F1}°C ({s.CpuLoadPercent:F1}% load) | " +
-               $"GPU {s.GpuTempC:F1}°C ({s.GpuLoadPercent:F1}% load) | " +
+               $"GPU {gpuTemp} ({s.GpuLoadPercent:F1}% load) | " +
                $"RAM {s.MemoryPercent:F1}% | " +
                $"Net ↑{s.NetworkUpKbPerSec:F1} ↓{s.NetworkDownKbPerSec:F1} KB/s";
     }

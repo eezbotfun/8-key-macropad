@@ -1,4 +1,4 @@
-# EezBotFun Hardware Monitor — Windows plugin user guide
+# EezBotFun Hardware Monitor Plugin — Windows user guide
 
 One app, no Windows service, no install steps. Unzip, run `**HardwareMonitor.exe**`, keep it open while you use the macro pad.
 
@@ -20,25 +20,26 @@ The app reads CPU, GPU, memory, disk, and network data from your PC and sends it
 
 ## Quick start
 
-1. **Unzip** the release folder (keep all `.dll` files and subfolders together).
+1. **Unzip** the release folder (or copy `HardwareMonitor.exe` anywhere).
 2. **Start EezBotFun Configurator** and enable **Enable Named Pipe Service**.
 3. **Double-click `HardwareMonitor.exe`**.
 4. Check your **macro pad LCD** — hardware status should update within a few seconds.
 
 That is all. While `**HardwareMonitor.exe`** is running, data is sent to the configurator. You can **minimize** the window. **Close** the app to stop monitoring.
 
-Optional: change **Interval (seconds)** in the app and click **Save settings** (default `1` second is fine).
+Only **one instance** can run at a time. If you launch it again, the existing window is brought to the front instead of starting a second copy.
+
+Optional: change **Interval (seconds)** in the app and click **Save settings** (default `2` seconds is fine).
 
 ---
 
 ## Files in the zip
 
 
-| File                                  | Purpose                                                  |
-| ------------------------------------- | -------------------------------------------------------- |
-| `**HardwareMonitor.exe`**             | **Run this.** Single monitoring app.                     |
-| Other `.dll` files, `runtimes\`, etc. | Bundled runtime and libraries — keep next to the `.exe`. |
-| `WINDOWS_PLUGIN_HELP.md`              | This guide.                                              |
+| File                      | Purpose                              |
+| ------------------------- | ------------------------------------ |
+| `**HardwareMonitor.exe`** | **Run this.** Single self-contained app — no extra DLLs. |
+| `WINDOWS_PLUGIN_HELP.md`  | This guide (optional).               |
 
 
 There is **no** separate service program and **no** administrator install step for normal use.
@@ -50,7 +51,7 @@ There is **no** separate service program and **no** administrator install step f
 
 | Setting                | Default | Description                       |
 | ---------------------- | ------- | --------------------------------- |
-| **Interval (seconds)** | `1`     | How often status is sent (1–300). |
+| **Interval (seconds)** | `2`     | How often status is sent (1–300). |
 
 
 Settings are saved to:
@@ -75,8 +76,8 @@ Settings are saved to:
 
 ### App fails to start after unzip
 
-- Extract the **full** zip again — do not run from inside the zip viewer.
-- Keep every file in the same folder as `**HardwareMonitor.exe`**.
+- Extract the zip fully — do not run from inside the zip viewer.
+- If Windows SmartScreen blocks the file, choose **More info → Run anyway** (unsigned build).
 
 ---
 

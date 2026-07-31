@@ -1,4 +1,4 @@
-# HardwareMonitor.Windows
+# EezBotFun Hardware Monitor Plugin
 
 Standalone C# app for EezBotFun Configurator. **Ship `HardwareMonitor.exe`** — one self-contained program; no Windows service install.
 
@@ -104,14 +104,15 @@ Or publish the release zip:
 .\publish.ps1
 ```
 
-Output: `windows/dist/HardwareMonitor.exe` (+ dependencies). Zip `dist\` for distribution.
+Output: `windows/dist/HardwareMonitor.exe` (single self-contained file). Zip `dist\` for distribution.
 
 Ensure EezBotFun Configurator is running with **Enable Named Pipe Service** while testing.
 
 ## App behavior
 
 - Starts monitoring automatically when opened.
-- **Interval (seconds)** — how often status is sent (1–300); saved to `%ProgramData%\EezBotFun\HardwareMonitor\settings.json`.
+- **Single instance** — only one copy runs; launching again brings the existing window to the front.
+- **Interval (seconds)** — how often status is sent (1–300, default 2); saved to `%ProgramData%\EezBotFun\HardwareMonitor\settings.json`.
 - Close the app to stop monitoring. Minimize is fine — keep it running for live LCD data.
 
 ## Optional: Windows service (legacy)
@@ -128,7 +129,7 @@ The **HardwareMonitor.Windows.Service** project remains for advanced/headless de
 
 ## Publish
 
-Self-contained **`HardwareMonitor.exe`** for `win-x64`:
+Self-contained single-file **`HardwareMonitor.exe`** for `win-x64`:
 
 ```powershell
 .\publish.ps1

@@ -1,31 +1,36 @@
 # Host guide: USB CDC customised display protocol (`cus`)
 
-This document describes how a host PC (or other USB host) sends framed messages over the device’s **USB CDC ACM** interface to drive the **customised** full-screen app mode on the device. The firmware parses these frames in `[main/config.c](../main/config.c)` and renders them via LVGL in `[main/customised_app.c](../main/customised_app.c)`.
+This document describes how a host PC (or other USB host) sends framed messages over the device’s **USB CDC ACM** interface to drive the **customised** app mode on the device. The firmware parses these frames in `[main/config.c](../main/config.c)` and renders them via LVGL in `[main/customised_app.c](../main/customised_app.c)`.
 
 For reference, the device may share the CDC port with other framed protocols (for example keyboard configuration with magic `ebf`, and PC status with `pcs`). Host tools should send **complete `cus` frames** as defined below.
 
+For **now playing** metadata and album art (`pcs` cmd `1231`, USB `player/cover.bin`), see the normative spec in the music player plugin repo: `docs/MEDIA_NOW_PLAYING_DEVICE_PROTOCOL.txt`. Binary layout reference: `docs/cover_bin_format.md` and example `docs/cover.bin`.
+
 ---
 
-## 0. Display layout (drawable canvas)
+## 0. Two draw modes
 
-On the **reference 480×320** landscape panel used in this project, the host can draw **only** the top **200 × 480** pixels (read as **200 rows × 480 columns** — i.e. **480 px wide** and **200 px tall**). That rectangle is the entire **drawable canvas** for the `cus` protocol: the bottom **120 × 480** px are reserved for on-device keys and are **not** part of this canvas.
+The customised screen has **two mutually exclusive draw modes**. Hosts pick one via `layout` (default = absolute when omitted).
 
-In firmware (see `[main/customised_app.c](../main/customised_app.c)`), the same idea is expressed as:
+| Mode | `layout` | Like | How you draw | How you refresh |
+| ---- | -------- | ---- | ------------ | --------------- |
+| **Grid** | `"grid"` | WPF/XAML `Grid` | Setup defines rows/cols and numbered widgets once | Later `set` updates **individual** widgets by `id` — **no** full-screen clear |
+| **Absolute** | omit or `"canvas"` | Absolute positioning | Each message places text/image at `x/y/w/h` (stacked overlays) | To redraw cleanly you must **`clear_canvas: true`** (wipe all overlays) then send new panels — **one-shot full refresh**, not per-widget update |
 
-| Band              | Size (pixels)                         | Role |
-| ----------------- | ------------------------------------- | ---- |
-| **Drawable canvas** | **`LV_HOR_RES` × (`LV_VER_RES` − 120)** | Only region host JSON can place the panel/label. On 480×320 this is **480×200**. |
-| **Key strip**     | **`LV_HOR_RES` × 120**                | Eight shortcut keys; **not** drawable via `cus`. |
+- Grid is for **persistent UI** that changes content over time without rebuilding the whole screen.
+- Absolute/canvas is for **simple or ad-hoc** drawing; there are **no stable widget ids**.
+- A grid setup replaces canvas overlays. Absolute frames ignore grid `widgets`/`set` when `layout` is not `grid`.
 
-### Coordinate system
+### 0.1 Display size (drawable canvas)
 
-All JSON geometry (**`x`**, **`y`**, **`w`**, **`h`**) is in **pixels** with the **origin at the top-left corner of the drawable canvas** `(0, 0)`. Increasing **`x`** moves right; increasing **`y`** moves down. The canvas has no other offset — you do **not** use coordinates relative to the full physical display. The firmware clamps `x`, `y`, `w`, `h` so the panel stays inside this canvas (`clamp_rect_custom_area`).
+On the **reference 480×320** landscape panel:
 
-**JSON defaults** when `w` / `h` are omitted: **`w` = `LV_HOR_RES`**, **`h` = `LV_VER_RES − 120`** (the full canvas height on the reference build: **200**).
+| Mode | Drawable canvas | Key strip (on-screen UI) |
+| ---- | --------------- | ------------------------ |
+| **Strip** (`fullscreen` false / omitted) | **480×200** | Visible **480×120**; not drawable via `cus` |
+| **Full-screen** (`fullscreen` true) | **480×320** | Hidden |
 
-The panel widget uses **6 px padding** on all sides for the label; the outer `(x, y, w, h)` box is what you set in JSON.
-
-If `LV_VER_RES` is not 320, the canvas height is **`LV_VER_RES − 120`** px; width remains **`LV_HOR_RES`** (often 480).
+**Absolute mode** geometry (`x`, `y`, `w`, `h`) is in pixels with origin at the top-left of the drawable canvas. Defaults: `w = LV_HOR_RES`; `h` = canvas height for current fullscreen mode.
 
 ---
 
@@ -33,202 +38,199 @@ If `LV_VER_RES` is not 320, the canvas height is **`LV_VER_RES − 120`** px; wi
 
 Each logical message is one binary frame:
 
+| Offset | Size | Description |
+| ------ | ---- | ----------- |
+| 0 | 3 bytes | ASCII magic: `c` `u` `s` (0x63, 0x75, 0x73) |
+| 3 | 2 bytes | Payload length **N**, **big-endian** uint16 |
+| 5 | **N** bytes | UTF-8 JSON object (see §2 / §3) |
 
-| Offset | Size        | Description                                                               |
-| ------ | ----------- | ------------------------------------------------------------------------- |
-| 0      | 3 bytes     | ASCII magic: `**c`** `**u**` `**s**` (0x63, 0x75, 0x73)                   |
-| 3      | 2 bytes     | Payload length **N**, **big-endian** unsigned 16-bit (`len_hi`, `len_lo`) |
-| 5      | **N** bytes | Payload: UTF-8 encoded JSON object (see §2)                               |
-
-
-- **N** must satisfy **1 ≤ N ≤ 2048** (current firmware limit: `[PARSER_MAX_DATA_LEN](../main/parser.c)`).
-- The JSON payload must not exceed what fits in the device’s internal stream buffer after framing; the reassembly buffer is **2048 bytes** (`[MAX_PRO_BUF_LEN](../main/config.c)`), so in practice keep **5 + N ≤ 2048**, i.e. **N ≤ 2043** for a single frame.
-
-The device accumulates incoming CDC bytes and scans for the substring `cus`. Once **5 + N** bytes are available from the start of that magic, it consumes one frame and forwards the **N** payload bytes to the parser task.
+- **N** must satisfy **1 ≤ N ≤ 2048** (`PARSER_MAX_DATA_LEN`).
+- Practical max: **N ≤ 2043** (`MAX_PRO_BUF_LEN` − 5).
 
 ### 1.1 Framing caveats
 
-- **Magic must not be split across CDC transfers** in a way that prevents detection: the parser looks for the contiguous ASCII sequence `cus`. Normal practice is to send the **entire frame in one `write()`** or ensure the magic appears intact after concatenation of chunks.
-- Payload bytes may be any UTF-8 octets. Avoid embedding a **NUL** (0x00) inside the JSON unless your toolchain intentionally sends binary; the firmware NUL-terminates a copy for `cJSON_Parse`, so **NUL inside the payload truncates the JSON**.
-- Accidental appearance of the bytes `cus` inside UTF-8 text in another protocol could theoretically confuse the scanner if those bytes were fed through the same buffer; keep host traffic aligned to the intended frame types.
+- Prefer sending the **entire frame in one `write()`**.
+- Do not embed **NUL** (0x00) inside the JSON (firmware NUL-terminates for `cJSON_Parse`).
+- Keep traffic aligned to intended frame types (`cus` / `pcs` / `ebf`).
 
 ---
 
-## 2. JSON schema (payload)
+## 2. Common fields
 
-All geometry is in **pixels** on the **drawable canvas** only (§0): **origin `(0,0)` is the top-left of that canvas** (on the reference device: the top-left of the **480×200** top band). Values are **not** relative to the full LCD.
+| Field | Type | Description |
+| ----- | ---- | ----------- |
+| `layout` | string | `"grid"` or omit/`"canvas"` (absolute). |
+| `fullscreen` | bool/int | `true` → full-screen canvas. Default `false`. |
+| `cmd` | string | `start` / `stop` / `update`. |
+| `activate` | bool/int | **Legacy** when `cmd` omitted: true→`start`, false→`update`. |
+| `leds` | object | Per-key RGB. See §5. |
 
+**Font:** embedded `regular` with Montserrat fallback for LVGL symbols. No host-selectable font files.
 
-| Field       | Type        | Required | Description                                                                                                                                                                                                                   |
-| ----------- | ----------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `x`         | integer     | no       | Distance from the **left edge of the drawable canvas** (default `0`).                                                                                                                                                        |
-| `y`         | integer     | no       | Distance from the **top edge of the drawable canvas** (default `0`).                                                                                                                                                          |
-| `w`         | integer     | no       | Panel width (default **`LV_HOR_RES`** — full canvas width, e.g. **480**).                                                                                                                                                      |
-| `h`         | integer     | no       | Panel height (default **`LV_VER_RES − 120`** — full canvas height, e.g. **200** on a 320-tall display).                                                                                                                         |
-| `text`      | string      | no       | UTF-8 label text for **one new stacked panel** (default empty). **Empty or omitted** → **no new panel** is added this frame (unless you only use `clear_canvas`). See §2.4.                                                     |
-| `fg`        | string      | no       | Foreground `#RRGGBB` (default `#FFFFFF`). Invalid format logs a warning and falls back to default.                                                                                                                            |
-| `bg`        | string      | no       | Background `#RRGGBB` for the **panel** behind the text (default `#000000`). Invalid → default.                                                                                                                                |
-| `align`     | string      | no       | Horizontal text alignment (default `LEFT`). See §2.1.                                                                                                                                                                         |
-| `long_mode` | string      | no       | LVGL label long mode (default `WRAP`). See §2.2.                                                                                                                                                                              |
-| `activate`  | bool or int | no       | If **true** / non-zero (default **true**), firmware switches to the customised app after updating widgets. If **false** / `0`, updates apply while **off-screen** until the user opens the customised mode (e.g. via rotary). |
-| `border`    | bool or int | no       | If the key is **absent**, no outline is drawn (`border-width` 0). If **present**: `false` or number **`≤ 0`** → no border; **`true`** → **1** px border; **integer `> 0`** → border width in pixels. See §2.3.                |
-| `border-color` | string   | no       | Outline colour `#RRGGBB`. **Only used when `border` draws a border**; if `border` is on but this key is omitted, firmware uses **`#888888`**. Ignored when there is no border. Invalid hex → warning, colour ignored (default grey still used when border on). |
-| `border-radius` | integer | no       | Corner radius of the **new panel** in **pixels**. If **omitted**, new panels use LVGL default (**0** — square corners). If **present** (including **`0`**), sets `radius` on that panel only. |
-| `clear_canvas` | bool or int | no | If **true** / non-zero: **remove every stacked text panel** from the drawable canvas (§3). Does **not** remove the key strip. May be combined with a non-empty **`text`** in the **same** frame (clear first, then draw one new panel). If **false** / absent / **0**, the canvas is left as-is before applying **`text`**. |
+### 2.1 `align` / `long_mode` / border (text panels)
 
+| `align` | LEFT / CENTER / RIGHT / AUTO |
+| `long_mode` | WRAP / SCROLL / SCROLL_CIRCULAR / CLIP / DOT |
 
-**Font:** There is no host-selectable font field. The customised label uses the same embedded **`regular`** font as the micropad key captions (Chinese-capable glyph set in your project’s `fonts/` build), not **`LV_FONT_DEFAULT`**.
+`border`, `border-color`, `border-radius` style text panel rectangles (not images).
 
-### 2.1 `align` (case-insensitive)
+### 2.2 `cmd` / `activate`
 
-Maps to LVGL 8 text alignment:
+| `cmd` | Behaviour |
+| ----- | --------- |
+| `start` | Mark customised plugin active; switch to customised app (unless now-playing). |
+| `stop` | Exit customised; restore NVS LED config; deactivate plugin flag. |
+| `update` | Apply UI/LED updates without forcing app switch. |
 
+When `cmd` omitted: `activate` true → `start`; false → `update`.
 
-| Value    | Meaning |
-| -------- | ------- |
-| `LEFT`   | Left    |
-| `CENTER` | Center  |
-| `RIGHT`  | Right   |
-| `AUTO`   | Auto    |
+### 2.3 LVGL symbols in `text`
 
+Embed named tokens in any `text` string. Firmware expands them to `LV_SYMBOL_*` UTF-8.
 
-Unknown values behave like `LEFT`.
+Syntax: `{name}` (lowercase), e.g. `{play} Playing`, `{wifi} On {battery_full}`.
 
-### 2.2 `long_mode` (case-insensitive)
+Supported names (subset): `ok`, `close`, `play`, `pause`, `stop`, `audio`, `mute`, `volume_mid`, `volume_max`, `wifi`, `battery_empty`, `battery_1`…`battery_3`, `battery_full`, `battery_charge`, `settings`, `home`, `download`, `upload`, `refresh`, `left`, `right`, `up`, `down`, `warning`, `dummy`, `file`, `directory`, `edit`, `save`, `trash`, `power`, `image`, `keyboard`, `list`, `gps`, `call`, `charge`, `eye_open`, `eye_close`, `bluetooth`.
 
-Maps to LVGL 8 label long mode:
-
-
-| Value             | Meaning             |
-| ----------------- | ------------------- |
-| `WRAP`            | Wrap                |
-| `SCROLL`          | Scroll horizontally |
-| `SCROLL_CIRCULAR` | Circular scroll     |
-| `CLIP`            | Clip                |
-| `DOT`             | Ellipsis            |
-
-
-Unknown values behave like `WRAP`.
-
-### 2.3 `border`, `border-color`, `border-radius`
-
-These keys style the **panel** rectangle (`x`, `y`, `w`, `h`), not individual glyphs. They are **independent**: e.g. you may set `border-radius` without `border` to get a rounded background only.
-
-### 2.4 Stacking, **`text`**, and **`clear_canvas`**
-
-- Each frame may **`clear_canvas`** (optional), then optionally **append one new text panel** if **`text`** is a **non-empty** UTF-8 string (after JSON parsing). **Empty `text` or omitted `text`** does **not** add a panel — use that for `{"clear_canvas":true}` without drawing.
-- **Later frames do not erase earlier panels**: new panels are stacked in creation order (newer panels paint above older ones where they overlap). Only **`clear_canvas`** removes all host-drawn panels at once.
-- To reset the canvas to blank (aside from the fixed key strip), send e.g. `{"clear_canvas":true,"activate":true}` (no `text`).
-- The firmware keeps at most **48** stacked panels; when exceeded, the **oldest** panels are deleted first (`CUS_MAX_CANVAS_OVERLAYS` in `[customised_app.c](../main/customised_app.c)`).
+Unknown `{...}` tokens are left unchanged. Avoid unmatched braces in copy.
 
 ---
 
-## 3. Behaviour summary
+## 3. Grid mode (`layout":"grid"`)
 
-- The customised LVGL screen is: **drawable canvas** (§0) containing **zero or more** stacked host-driven **panels** (each with one **label**), plus the bottom **key strip**.
-- With `**activate: true`**, the device switches to `**e_app_customised**` after handling the frame (same as before).
-- With `**activate: false**`, canvas updates apply off-screen until the user opens customised mode manually.
+### 3.1 Setup
 
----
-
-## 4. Building a frame (examples)
-
-### 4.1 Python 3 (pyserial)
-
-```python
-import json
-import serial
-
-def build_cus_frame(obj: dict) -> bytes:
-    payload = json.dumps(obj, separators=(",", ":")).encode("utf-8")
-    n = len(payload)
-    if n < 1 or n > 2048:
-        raise ValueError(f"payload length {n} out of range")
-    return b"cus" + n.to_bytes(2, "big") + payload
-
-ser = serial.Serial("COM5", 115200, timeout=1)  # adjust port / baud to match device
-# On 480x320, custom-area height is 200 px; keep y+h <= 200 (plus clamping in firmware).
-frame = build_cus_frame({
-    "x": 10,
-    "y": 10,
-    "w": 460,
-    "h": 80,
-    "text": "Hello — UTF-8 ok",
-    "fg": "#FFFFFF",
-    "bg": "#224466",
-    "align": "CENTER",
-    "long_mode": "SCROLL",
-    "activate": True,
-})
-ser.write(frame)
-ser.flush()
-```
-
-### 4.2 Minimal JSON examples
-
-Fill the **custom area** on a 480×320 panel (omit `w`/`h` for the same effect):
+Send `grid` + `widgets` (rebuilds the grid UI). Caps: **12** widgets, **8** rows, **8** cols. Single JSON frame ≤2048 bytes.
 
 ```json
-{"x":0,"y":0,"w":480,"h":200,"text":"Loading…","fg":"#EEEEEE","bg":"#111111","align":"CENTER","long_mode":"WRAP","activate":true}
+{
+  "cmd": "start",
+  "layout": "grid",
+  "fullscreen": true,
+  "grid": {
+    "cols": ["*", "*", "*", "*"],
+    "rows": ["40", "*", "40"],
+    "gap": 4,
+    "pad": 6
+  },
+  "widgets": [
+    { "id": 0, "type": "text", "row": 0, "col": 0, "align": "CENTER", "text": "A1" },
+    { "id": 1, "type": "text", "row": 0, "col": 1, "align": "CENTER", "text": "A2" },
+    { "id": 2, "type": "text", "row": 0, "col": 2, "align": "CENTER", "text": "A3" },
+    { "id": 3, "type": "text", "row": 0, "col": 3, "align": "CENTER", "text": "A4" },
+    { "id": 4, "type": "text", "row": 1, "col": 0, "col_span": 4,
+      "align": "LEFT", "long_mode": "SCROLL_CIRCULAR",
+      "text": "Rolling status line — updates can replace or append" },
+    { "id": 5, "type": "text", "row": 2, "col": 0, "align": "CENTER", "text": "B1" },
+    { "id": 6, "type": "text", "row": 2, "col": 1, "align": "CENTER", "text": "B2" },
+    { "id": 7, "type": "text", "row": 2, "col": 2, "align": "CENTER", "text": "B3" },
+    { "id": 8, "type": "text", "row": 2, "col": 3, "align": "CENTER", "text": "B4" }
+  ]
+}
 ```
 
-Panel with **1 px** border, custom colour, and **8 px** rounded corners:
+Track sizing (WPF-like): `"120"` = pixels; `"*"` = 1 star; `"2*"` = 2 stars.
+
+Widget: `id` (0-based), `type` (`text`|`image`), `row`, `col`, optional `row_span`/`col_span` (default 1), plus `text`/`image`/`fg`/`bg`/`align`/`long_mode`/`border*`.
+
+### 3.2 Update (`set`)
 
 ```json
-{"x":8,"y":8,"w":464,"h":120,"text":"Status","border":true,"border-color":"#00AAFF","border-radius":8,"activate":true}
+{
+  "cmd": "update",
+  "layout": "grid",
+  "set": [
+    { "id": 0, "text": "A1*" },
+    { "id": 4, "text": "New ticker", "text_op": "replace" },
+    { "id": 4, "text": "line 2", "text_op": "append" }
+  ]
+}
 ```
 
-Clear all host-drawn panels on the canvas (keys unchanged):
+| `text_op` | Behavior (grid text only) |
+| --------- | ------------------------- |
+| `replace` / omit | Set label text |
+| `append` | Append with `\n`; trim from start if UTF-8 length > 512 |
+
+Marquee: `long_mode: SCROLL_CIRCULAR` + usually `text_op: replace`. Multi-line log: `append` + `WRAP`.
+
+Unknown `id` → ignore. Absolute fields (`clear_canvas`, `x/y/w/h` create) ignored in grid mode.
+
+---
+
+## 4. Absolute / canvas mode
+
+| Field | Description |
+| ----- | ----------- |
+| `x`,`y`,`w`,`h` | Panel rectangle |
+| `text` | New stacked text panel (non-empty) |
+| `image` | PNG basename under MSC `customised/` |
+| `clear_canvas` | Remove all stacked overlays |
+| `fg`,`bg`,`align`,`long_mode`,`border*` | Text panel style |
+
+- Cap: **20** overlays; oldest deleted first.
+- No stable ids; refresh = `clear_canvas` then redraw.
+- `text_op` is **not** used in absolute mode.
+
+### 4.1 Images (MSC)
+
+1. Host writes PNG to `{USB_ROOT}/customised/<name>.png`.
+2. Host sends `"image":"<name>.png"` (basename only; `.png`; no path/`..`).
+3. Firmware loads `S:/spiflash/customised/<name>.png`.
+
+Do **not** put image bytes or base64 inside `cus` JSON. Desktop bridges may accept `image_b64` over EZBF IPC, write MSC, then strip before CDC.
+
+---
+
+## 5. `leds` (per-key RGB backlight)
+
+Controls the **8× SK6812** key lights (not the LCD panel backlight).
+
+| Field | Description |
+| ----- | ----------- |
+| `on` | Master enable. `false` → all off. Default when `leds` present: `true`. |
+| `keys` | Array length 1..8. Index 0..7. `#RRGGBB`; `null` = unchanged; `"#000000"`/`false` = off. |
+
+On `"cmd":"stop"`, firmware restores NVS LED config (`ws2812_update()`).
+
+---
+
+## 6. Examples
+
+Absolute strip text:
 
 ```json
-{"clear_canvas":true,"activate":true}
+{"x":0,"y":0,"w":480,"h":200,"text":"{ok} Loading…","fg":"#EEEEEE","bg":"#111111","align":"CENTER","cmd":"start"}
 ```
 
-Clear then draw a single new line (same frame):
+Grid update append:
 
 ```json
-{"clear_canvas":true,"x":0,"y":0,"w":480,"h":40,"text":"Fresh start","activate":true}
+{"cmd":"update","layout":"grid","set":[{"id":4,"text":"{wifi} event","text_op":"append"}]}
 ```
 
-Update text only (stay on current app until user rotates):
+Clear absolute overlays:
 
 ```json
-{"text":"Queued message","activate":false}
+{"clear_canvas":true,"cmd":"update"}
 ```
 
 ---
 
-## 5. Limits checklist
+## 7. Limits checklist
 
-
-| Limit                             | Value                                      | Source                                         |
-| --------------------------------- | ------------------------------------------ | ---------------------------------------------- |
-| Drawable canvas (reference 480×320 LCD) | **200 × 480** px (**200** tall × **480** wide) only | `CUS_TOP_H` × `LV_HOR_RES` in `customised_app.c` |
-| Max stacked text panels on canvas | **48**                                     | `CUS_MAX_CANVAS_OVERLAYS` in `customised_app.c` |
-| Canvas height (general)           | **`LV_VER_RES − 120`** px                  | `CUS_TOP_H` in `customised_app.c`              |
-| Key strip height                  | **120** px (fixed)                         | `CUS_BOTTOM_H` in `customised_app.c`           |
-| Max payload length **N** (parser) | 2048 bytes                                 | `PARSER_MAX_DATA_LEN`                          |
-| Practical max **N** per frame     | ≤ 2043                                     | `MAX_PRO_BUF_LEN` − 5 byte header              |
-| Typical CDC chunk size            | Host-dependent                             | Sending whole frames avoids split-magic issues |
-
+| Limit | Value |
+| ----- | ----- |
+| Strip / full-screen canvas | 480×200 / 480×320 |
+| Max stacked absolute overlays | 20 |
+| Max grid widgets / rows / cols | 12 / 8 / 8 |
+| Append text buffer | 512 UTF-8 bytes |
+| Max payload **N** | 2048 |
 
 ---
 
-## 6. Related protocols on the same CDC interface
+## 8. Related protocols / verification
 
-Only documented here for isolation—do **not** mix bytes arbitrarily:
-
-- `**ebf`** + 1-byte length + payload: keyboard / configuration commands (device-specific).
-- `**pcs**` + 2-byte big-endian length + payload: PC monitor JSON (different consumer).
-
-Host software for customised UI should send **only well-formed `cus` frames** when targeting this feature.
-
----
-
-## 7. Verification tips
-
-1. Open the correct virtual COM port created by USB (VID/PID depend on device firmware).
-2. Send one complete `cus` frame with `"activate": true` and distinct `fg`/`bg` to confirm the customised screen appears.
-3. Cycle modes on the device (rotary) to confirm micropad → monitor → customised order when using `**activate`: false** updates.
-
-If parsing fails, the firmware logs a warning (tag `cus_app`, JSON parse failure); check UTF-8 validity and JSON syntax.
+- **`ebf`**: keyboard / configuration. **`pcs`**: PC status / now playing.
+- Verify: `cmd:start` → fullscreen → grid setup → `set` by id → symbols → `leds` → `cmd:stop`.
+- Logs: tag `cus_app`.

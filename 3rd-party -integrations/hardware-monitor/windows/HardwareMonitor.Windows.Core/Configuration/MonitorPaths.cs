@@ -3,7 +3,8 @@ namespace HardwareMonitor.Windows.Configuration;
 public static class MonitorPaths
 {
     public const string ServiceName = "EezBotFunHardwareMonitor";
-    public const string ServiceDisplayName = "EezBotFun Hardware Monitor";
+    public const string AppDisplayName = "EezBotFun Hardware Monitor Plugin";
+    public const string ServiceDisplayName = AppDisplayName;
     public const string ServiceDescription =
         "Sends PC hardware status to EezBotFun Configurator via named pipe.";
 

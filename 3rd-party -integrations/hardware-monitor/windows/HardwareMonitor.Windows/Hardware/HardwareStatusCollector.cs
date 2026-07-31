@@ -5,16 +5,10 @@ namespace HardwareMonitor.Windows.Hardware;
 
 internal sealed class HardwareStatusCollector : IDisposable
 {
-    private static readonly HardwareType[] GpuTypes =
-    [
-        HardwareType.GpuNvidia,
-        HardwareType.GpuAmd,
-        HardwareType.GpuIntel,
-    ];
-
     private readonly Computer _computer;
     private readonly UpdateVisitor _updateVisitor = new();
     private readonly LhmSensorCache _sensors = new();
+    private readonly LhmGpuReader _gpuReader = new();
     private readonly NetworkMetrics _networkMetrics = new();
 
     public HardwareStatusCollector()
@@ -30,24 +24,26 @@ internal sealed class HardwareStatusCollector : IDisposable
             IsStorageEnabled = true,
         };
         _computer.Open();
+        LhmComputerWarmup.Prime(_computer, _updateVisitor);
     }
 
     public HardwareSnapshot Capture()
     {
+        LhmComputerWarmup.Prime(_computer, _updateVisitor, cycles: 2);
         _sensors.Refresh(_computer, _updateVisitor);
+
+        LhmGpuSnapshot gpu = _gpuReader.Read(_computer);
+        if (gpu.TempC is not > 0 && gpu.MemTotalMb <= 0)
+        {
+            LhmComputerWarmup.Prime(_computer, _updateVisitor, cycles: 5);
+            gpu = _gpuReader.Read(_computer);
+        }
 
         float? cpuPackage = GetCpuPackageTemp();
         float? cpuCore1 = GetCpuCoreTemp(1) ?? cpuPackage;
         float cpuLoad = GetCpuLoad();
         float? cpuPower = GetCpuPower();
         (int tjMax, float core1Distance) = GetCpuTjMaxAndDistance(cpuCore1 ?? 0);
-
-        float? gpuTemp = GetGpuTemp();
-        float gpuLoad = GetGpuLoad();
-        float? gpuPower = GetGpuPower();
-        float gpuFan = GetGpuFanRpm();
-        (float gpuMemUsed, float gpuMemTotal) = GetGpuMemoryMb();
-        float gpuFreq = GetGpuClockMhz();
 
         ulong diskRead = 0;
         ulong diskWrite = 0;
@@ -70,13 +66,14 @@ internal sealed class HardwareStatusCollector : IDisposable
             CpuTjMaxC = tjMax,
             CpuCore1DistanceToTjMaxC = core1Distance,
 
-            GpuTempC = gpuTemp,
-            GpuLoadPercent = gpuLoad,
-            GpuPowerWatts = gpuPower,
-            GpuFanRpm = gpuFan,
-            GpuMemUsedMb = gpuMemUsed,
-            GpuMemTotalMb = gpuMemTotal,
-            GpuFreqMhz = gpuFreq,
+            GpuTempC = gpu.TempC,
+            GpuLoadPercent = gpu.LoadPercent,
+            GpuPowerWatts = gpu.PowerWatts,
+            GpuFanRpm = gpu.FanRpm,
+            GpuMemUsedMb = gpu.MemUsedMb,
+            GpuMemTotalMb = gpu.MemTotalMb,
+            GpuFreqMhz = gpu.FreqMhz,
+            GpuDeviceName = gpu.DeviceName,
 
             StorageTempC = GetStorageTemp(),
             StorageReadMb = diskRead / (1024f * 1024f),
@@ -93,7 +90,7 @@ internal sealed class HardwareStatusCollector : IDisposable
             NetworkLinksUp = network.LinksUp,
             NetworkLinksTotal = network.LinksTotal,
 
-            BoardFanRpm = GetBoardFanRpm(gpuFan),
+            BoardFanRpm = GetBoardFanRpm(gpu.FanRpm),
             MotherboardTempC = GetMotherboardTemp(),
         };
     }
@@ -180,60 +177,6 @@ internal sealed class HardwareStatusCollector : IDisposable
         return (defaultTjMax, Math.Max(0, defaultTjMax - core1Temp));
     }
 
-    private float? GetGpuTemp()
-    {
-        return _sensors.FirstValue(
-            SensorType.Temperature,
-            s => LhmSensorCache.NameContainsAny(s, "Hot Spot", "GPU Core", "Core"),
-            GpuTypes);
-    }
-
-    private float GetGpuLoad()
-    {
-        return _sensors.FirstValue(
-            SensorType.Load,
-            s => LhmSensorCache.NameContainsAny(s, "GPU Core", "D3D 3D", "3D"),
-            GpuTypes) ?? 0f;
-    }
-
-    private float? GetGpuPower()
-    {
-        return _sensors.FirstValue(
-            SensorType.Power,
-            s => LhmSensorCache.NameContainsAny(s, "GPU Power", "Board Power", "Package"),
-            GpuTypes);
-    }
-
-    private float GetGpuFanRpm()
-    {
-        return _sensors.FirstValue(SensorType.Fan, _ => true, GpuTypes) ?? 0f;
-    }
-
-    private (float Used, float Total) GetGpuMemoryMb()
-    {
-        float? used = _sensors.FirstValue(
-            SensorType.SmallData,
-            s => LhmSensorCache.NameContains(s, "GPU Memory Used"),
-            GpuTypes)
-            ?? _sensors.FirstValue(SensorType.Data, s => LhmSensorCache.NameContains(s, "GPU Memory Used"), GpuTypes);
-
-        float? total = _sensors.FirstValue(
-            SensorType.SmallData,
-            s => LhmSensorCache.NameContains(s, "GPU Memory Total"),
-            GpuTypes)
-            ?? _sensors.FirstValue(SensorType.Data, s => LhmSensorCache.NameContains(s, "GPU Memory Total"), GpuTypes);
-
-        return (used ?? 0f, total ?? 0f);
-    }
-
-    private float GetGpuClockMhz()
-    {
-        return _sensors.FirstValue(
-            SensorType.Clock,
-            s => LhmSensorCache.NameContainsAny(s, "GPU Core", "Core"),
-            GpuTypes) ?? 0f;
-    }
-
     private float? GetStorageTemp()
     {
         return _sensors.FirstValue(SensorType.Temperature, _ => true, HardwareType.Storage);
@@ -243,10 +186,21 @@ internal sealed class HardwareStatusCollector : IDisposable
     {
         float max = _sensors.MaxValue(
             SensorType.Temperature,
-            _ => true,
-            HardwareType.Motherboard);
+            IsValidBoardTemp,
+            HardwareType.Motherboard,
+            HardwareType.SuperIO);
 
         return max > 0 ? max : null;
+    }
+
+    private static bool IsValidBoardTemp(CachedSensor sensor)
+    {
+        if (sensor.Value <= 0 || sensor.Value > 120)
+        {
+            return false;
+        }
+
+        return !LhmSensorCache.NameContainsAny(sensor, "Distance", "TjMax");
     }
 
     private float GetBoardFanRpm(float gpuFanFallback)

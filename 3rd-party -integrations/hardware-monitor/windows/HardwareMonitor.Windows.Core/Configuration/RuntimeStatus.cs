@@ -16,6 +16,7 @@ public sealed class RuntimeStatus
     public double GpuLoadPercent { get; set; }
     public double GpuMemUsedMb { get; set; }
     public double GpuMemTotalMb { get; set; }
+    public string? GpuDeviceName { get; set; }
 
     public double MemoryUsedGb { get; set; }
     public double StoragePercent { get; set; }

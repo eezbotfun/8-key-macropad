@@ -7,7 +7,7 @@ to display real-time system status.
 Implementations
 ---------------
   Windows (recommended)
-    Single app: HardwareMonitor.exe (windows/ — run publish.ps1)
+    EezBotFun Hardware Monitor Plugin — HardwareMonitor.exe (windows/ — run publish.ps1)
     Uses LibreHardwareMonitorLib in-process for CPU/GPU/storage/network sensors.
     User guide: docs/WINDOWS_PLUGIN_HELP.md
     Upstream library: https://github.com/LibreHardwareMonitor/LibreHardwareMonitor
