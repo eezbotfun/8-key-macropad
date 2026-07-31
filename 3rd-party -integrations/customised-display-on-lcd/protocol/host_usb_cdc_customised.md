@@ -1,6 +1,6 @@
 # Host guide: USB CDC customised display protocol (`cus`)
 
-This document describes how a host PC (or other USB host) sends framed messages over the device’s **USB CDC ACM** interface to drive the **customised** app mode on the device. The firmware parses these frames in `[main/config.c](../main/config.c)` and renders them via LVGL in `[main/customised_app.c](../main/customised_app.c)`.
+This document describes how a host PC (or other USB host) sends framed messages over the device’s **USB CDC ACM** interface to drive the **customised** app mode on the device. The device parses complete `cus` frames and renders the JSON payload on the LCD (and optional key LEDs).
 
 For reference, the device may share the CDC port with other framed protocols (for example keyboard configuration with magic `ebf`, and PC status with `pcs`). Host tools should send **complete `cus` frames** as defined below.
 
@@ -30,7 +30,7 @@ On the **reference 480×320** landscape panel:
 | **Strip** (`fullscreen` false / omitted) | **480×200** | Visible **480×120**; not drawable via `cus` |
 | **Full-screen** (`fullscreen` true) | **480×320** | Hidden |
 
-**Absolute mode** geometry (`x`, `y`, `w`, `h`) is in pixels with origin at the top-left of the drawable canvas. Defaults: `w = LV_HOR_RES`; `h` = canvas height for current fullscreen mode.
+**Absolute mode** geometry (`x`, `y`, `w`, `h`) is in pixels with origin at the top-left of the drawable canvas. Defaults: `w` = full canvas width (e.g. **480**); `h` = canvas height for the current fullscreen mode (**200** strip / **320** full-screen on the reference panel).
 
 ---
 
@@ -44,13 +44,13 @@ Each logical message is one binary frame:
 | 3 | 2 bytes | Payload length **N**, **big-endian** uint16 |
 | 5 | **N** bytes | UTF-8 JSON object (see §2 / §3) |
 
-- **N** must satisfy **1 ≤ N ≤ 2048** (`PARSER_MAX_DATA_LEN`).
-- Practical max: **N ≤ 2043** (`MAX_PRO_BUF_LEN` − 5).
+- **N** must satisfy **1 ≤ N ≤ 2048**.
+- Practical max: **N ≤ 2043** (leave room for the 5-byte frame header in the device receive buffer).
 
 ### 1.1 Framing caveats
 
 - Prefer sending the **entire frame in one `write()`**.
-- Do not embed **NUL** (0x00) inside the JSON (firmware NUL-terminates for `cJSON_Parse`).
+- Do not embed **NUL** (0x00) inside the JSON (the device treats the payload as a NUL-terminated UTF-8 string).
 - Keep traffic aligned to intended frame types (`cus` / `pcs` / `ebf`).
 
 ---
@@ -65,7 +65,7 @@ Each logical message is one binary frame:
 | `activate` | bool/int | **Legacy** when `cmd` omitted: true→`start`, false→`update`. |
 | `leds` | object | Per-key RGB. See §5. |
 
-**Font:** embedded `regular` with Montserrat fallback for LVGL symbols. No host-selectable font files.
+**Font:** device-embedded `regular` font with symbol fallback. No host-selectable font files.
 
 ### 2.1 `align` / `long_mode` / border (text panels)
 
@@ -79,18 +79,38 @@ Each logical message is one binary frame:
 | `cmd` | Behaviour |
 | ----- | --------- |
 | `start` | Mark customised plugin active; switch to customised app (unless now-playing). |
-| `stop` | Exit customised; restore NVS LED config; deactivate plugin flag. |
+| `stop` | Exit customised; restore saved LED config; deactivate customised mode. |
 | `update` | Apply UI/LED updates without forcing app switch. |
 
 When `cmd` omitted: `activate` true → `start`; false → `update`.
 
-### 2.3 LVGL symbols in `text`
+### 2.3 Symbol tokens in `text`
 
-Embed named tokens in any `text` string. Firmware expands them to `LV_SYMBOL_*` UTF-8.
+Embed named tokens in any `text` string. The device expands them to built-in symbol glyphs.
 
 Syntax: `{name}` (lowercase), e.g. `{play} Playing`, `{wifi} On {battery_full}`.
 
-Supported names (subset): `ok`, `close`, `play`, `pause`, `stop`, `audio`, `mute`, `volume_mid`, `volume_max`, `wifi`, `battery_empty`, `battery_1`…`battery_3`, `battery_full`, `battery_charge`, `settings`, `home`, `download`, `upload`, `refresh`, `left`, `right`, `up`, `down`, `warning`, `dummy`, `file`, `directory`, `edit`, `save`, `trash`, `power`, `image`, `keyboard`, `list`, `gps`, `call`, `charge`, `eye_open`, `eye_close`, `bluetooth`.
+![Built-in symbol glyphs (token name = lowercase without prefix)](../images/lvgl-symbols.png)
+
+In the chart above, each glyph is labeled `LV_SYMBOL_<NAME>`. In `cus` JSON `text` fields, use the same name in **lowercase** inside braces — for example `LV_SYMBOL_WARNING` → `{warning}`, `LV_SYMBOL_BATTERY_FULL` → `{battery_full}`, `LV_SYMBOL_VOLUME_MID` → `{volume_mid}`.
+
+| Token | Token | Token | Token |
+| ----- | ----- | ----- | ----- |
+| `{audio}` | `{video}` | `{list}` | `{ok}` |
+| `{close}` | `{power}` | `{settings}` | `{trash}` |
+| `{home}` | `{download}` | `{drive}` | `{refresh}` |
+| `{mute}` | `{volume_mid}` | `{volume_max}` | `{image}` |
+| `{edit}` | `{prev}` | `{play}` | `{pause}` |
+| `{stop}` | `{next}` | `{eject}` | `{left}` |
+| `{right}` | `{plus}` | `{minus}` | `{eye_open}` |
+| `{eye_close}` | `{warning}` | `{shuffle}` | `{up}` |
+| `{down}` | `{loop}` | `{directory}` | `{upload}` |
+| `{call}` | `{cut}` | `{copy}` | `{save}` |
+| `{charge}` | `{paste}` | `{bell}` | `{keyboard}` |
+| `{gps}` | `{file}` | `{wifi}` | `{battery_full}` |
+| `{battery_3}` | `{battery_2}` | `{battery_1}` | `{battery_empty}` |
+| `{usb}` | `{bluetooth}` | `{backspace}` | `{sd_card}` |
+| `{new_line}` | | | |
 
 Unknown `{...}` tokens are left unchanged. Avoid unmatched braces in copy.
 
@@ -174,9 +194,9 @@ Unknown `id` → ignore. Absolute fields (`clear_canvas`, `x/y/w/h` create) igno
 
 ### 4.1 Images (MSC)
 
-1. Host writes PNG to `{USB_ROOT}/customised/<name>.png`.
+1. Host writes PNG to `{USB_ROOT}/customised/<name>.png` on the device MSC volume.
 2. Host sends `"image":"<name>.png"` (basename only; `.png`; no path/`..`).
-3. Firmware loads `S:/spiflash/customised/<name>.png`.
+3. The device loads that PNG from onboard storage under `customised/`.
 
 Do **not** put image bytes or base64 inside `cus` JSON. Desktop bridges may accept `image_b64` over EZBF IPC, write MSC, then strip before CDC.
 
@@ -191,7 +211,7 @@ Controls the **8× SK6812** key lights (not the LCD panel backlight).
 | `on` | Master enable. `false` → all off. Default when `leds` present: `true`. |
 | `keys` | Array length 1..8. Index 0..7. `#RRGGBB`; `null` = unchanged; `"#000000"`/`false` = off. |
 
-On `"cmd":"stop"`, firmware restores NVS LED config (`ws2812_update()`).
+On `"cmd":"stop"`, the device restores the saved LED configuration.
 
 ---
 
@@ -233,4 +253,3 @@ Clear absolute overlays:
 
 - **`ebf`**: keyboard / configuration. **`pcs`**: PC status / now playing.
 - Verify: `cmd:start` → fullscreen → grid setup → `set` by id → symbols → `leds` → `cmd:stop`.
-- Logs: tag `cus_app`.
