@@ -81,6 +81,9 @@ https://www.eezbotfun.com/en/8-key-macropad-with-screen
 # Configure APP
 Please see config-app folder for detailed infomation.
 
+# Preset Gallery - Community Driven
+https://www.eezbotfun.com/enles/files
+
 # User Manual
 https://www.eezbotfun.com/en/wiki/8-key-macro-pad-user-manual
 
