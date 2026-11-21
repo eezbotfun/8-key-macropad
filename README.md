@@ -45,7 +45,7 @@ High functionality without the premium price of commercial alternatives.
 
  PC Monitoring Full Screen Mode
  
- 5 Profiles With Dedicated Navigation Switch
+ Up to 25 Profiles With Dedicated Navigation Switch
  
  RGB Backlit Configurable (wired version only)
  
@@ -54,9 +54,11 @@ High functionality without the premium price of commercial alternatives.
  Key Icon Customizable
  
  Script Supported
+
+ Windows/macOS Compatible
  
  Intuitive Configuration Software
-![APP UI](https://github.com/eezbotfun/8-key-macropad/blob/main/config-app/UI-Overview-illustrated.PNG)
+<img width="1816" height="1162" alt="Drag To Assign Key Function" src="https://github.com/user-attachments/assets/d583910c-daa1-4c0c-9ab8-a834c99b14da" />
 
 
  
